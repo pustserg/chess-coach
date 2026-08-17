@@ -124,3 +124,18 @@ Replace the general-purpose Ollama model with a small, fine-tuned LLM specialize
 - [ ] **Serving & Cutover:**
   - Serve the fine-tuned model via Ollama (GGUF) or vLLM.
   - A/B test against the base model, then cut over the AI Coach pipeline once quality regressions clear.
+
+---
+
+## Ideas & Nice-to-Have (Backlog)
+
+Lower priority than the numbered phases; not part of any phase's completion criteria. Pick these up opportunistically or once the core loop is stable.
+
+- [ ] **GitHub Actions CI** (low priority) — lint, typecheck, and test on push/PR. Deferred since we verify everything locally.
+- [ ] **Custom board themes** — selectable board and piece color themes (e.g. classic, green, blue, dark), persisted as a user preference.
+- [ ] **Sound effects** — optional move/capture/check sounds, off by default.
+- [ ] **PGN export/import** — copy the game PGN to the clipboard and load a pasted PGN to review a position.
+- [ ] **Draw offer / resign** — explicit draw offers and resignation in hotseat games.
+- [ ] **Clock increments** — Fischer/Bronstein increment support in time controls.
+- [ ] **PWA / offline install** — installable to home screen; works offline for local play.
+- [ ] **Move animations & polish** — smoother piece transitions and drag affordances.
