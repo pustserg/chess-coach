@@ -19,15 +19,15 @@
 Build a fully functional, mobile-first web application enabling two players to play chess on a single device (Hotseat mode) with complete rule enforcement.
 
 ### Requirements & Task Checklist
-- [ ] **Mobile-First Layout:**
+- [x] **Mobile-First Layout:**
   - Designed primarily for vertical mobile screens (`max-w-md` container on desktop).
   - Chessboard scales to 100% container width.
   - Top and bottom player indicator cards with turn status, captured pieces, and move timers.
-- [ ] **Chess Rules Integration:**
+- [x] **Chess Rules Integration:**
   - Integrate `chess.js` for state management and move validation.
   - Implement special moves: en passant, castling, and pawn promotion modals.
   - Game status detection: Check, Checkmate, Stalemate, Threefold Repetition, Insufficient Material, 50-move rule.
-- [ ] **Controls & UX:**
+- [x] **Controls & UX:**
   - Flip board option (automatic or manual rotation per turn).
   - Move history display (PGN notation format).
   - Game control actions: "New Game", "Undo Move" (Takeback).
