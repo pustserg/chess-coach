@@ -67,6 +67,7 @@ Enable online play by allowing users to create games, invite friends via shareab
   - Supabase Realtime synchronization layer (Postgres CDC over WebSockets).
   - Room creation flow: Generate unique `gameId` -> Shareable invite URL.
   - Matchmaking state machine: Handle player connection, reconnection timeouts, and spectator mode.
+  - Draw offers and resignation: offer/accept/decline a draw; resign ends the game and records the result.
 - [ ] **Database & Game Persistence:**
   - PostgreSQL schema for `Users`, `Games`, `Moves`, and `Ratings`.
   - Store completed PGNs, game duration, termination reasons, and timestamped move logs.
@@ -135,7 +136,6 @@ Lower priority than the numbered phases; not part of any phase's completion crit
 - [ ] **Custom board themes** — selectable board and piece color themes (e.g. classic, green, blue, dark), persisted as a user preference.
 - [ ] **Sound effects** — optional move/capture/check sounds, off by default.
 - [ ] **PGN export/import** — copy the game PGN to the clipboard and load a pasted PGN to review a position.
-- [ ] **Draw offer / resign** — explicit draw offers and resignation in hotseat games.
 - [ ] **Clock increments** — Fischer/Bronstein increment support in time controls.
 - [ ] **PWA / offline install** — installable to home screen; works offline for local play.
 - [ ] **Move animations & polish** — smoother piece transitions and drag affordances.
