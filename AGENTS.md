@@ -8,10 +8,6 @@ AI Chess Coach & Platform — a mobile-first web app for playing and studying ch
 
 `roadmap.md` is the product requirement document (PRD) and the source of truth for scope. It defines six phases; work should map to a phase.
 
-## Current State
-
-Greenfield. The repository contains only `roadmap.md` — no application code, package manifests, or directory structure yet. Phase 1 (local hotseat app) is the active target. No build/test commands exist; add them when scaffolding is introduced.
-
 ## Tech Stack
 
 - Frontend: Next.js (App Router) + TypeScript + Tailwind CSS, mobile-first
@@ -37,3 +33,32 @@ Greenfield. The repository contains only `roadmap.md` — no application code, p
 - Reuse existing patterns; one convention per concern. Clean cutover when replacing code — migrate every caller, leave no shims or aliases.
 - Verify behavior before claiming completion: run the relevant command or exercise the changed path; cite the observed output.
 - Update `roadmap.md` when scope or the stack changes, so the PRD stays the source of truth.
+
+## Workflow
+
+### Branching & Pull Requests
+
+- Implement each phase on a dedicated branch off `main` — never commit phase work directly to `main`.
+- When a phase is complete, open a pull request on GitHub. Changes land only via PR; never merge or push directly to `main`.
+- Never force-push (`git push --force`). The only exception is an explicit request from the user.
+
+### Commits & Testing
+
+- Use Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`), imperative lowercase subject.
+- Cover all code with tests.
+
+### Planning & Documentation
+
+- Before implementing a phase, write a design spec for it.
+- Maintain an implementation specification for every task and feature.
+- Maintain an ERD diagram covering the entire app's data model.
+- Keep these artifacts under `docs/` (e.g. `docs/design/`, `docs/specs/`, `docs/erd.md`).
+
+### Bugs
+
+- For any bug, write a post-mortem documenting root cause, fix, and prevention.
+- Update the implementation specification for the affected feature(s) alongside the fix.
+
+### Completing a Phase
+
+- When opening the PR, update `roadmap.md` and mark the completed tasks as done.
