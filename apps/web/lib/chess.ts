@@ -1,5 +1,5 @@
 import { Chess, DEFAULT_POSITION } from 'chess.js'
-import type { GameState, GameStatus, TimeControl } from './types'
+import type { GameState, GameStatus, PromotionPiece, TimeControl } from './types'
 
 export function createInitialState(_timeControl: TimeControl): GameState {
   return {
@@ -39,6 +39,17 @@ export function applyMove(state: GameState, from: string, to: string): GameState
     return { ...state, pendingPromotion: { from, to } }
   }
   const move = chess.move({ from, to })
+  return commitMove(state, chess, move)
+}
+
+export function promote(state: GameState, piece: PromotionPiece): GameState {
+  if (!state.pendingPromotion) return state
+  const chess = new Chess(state.fen)
+  const move = chess.move({
+    from: state.pendingPromotion.from,
+    to: state.pendingPromotion.to,
+    promotion: piece,
+  })
   return commitMove(state, chess, move)
 }
 

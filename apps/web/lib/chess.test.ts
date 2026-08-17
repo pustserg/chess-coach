@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import { applyMove, createInitialState, getStatus } from './chess'
+import { applyMove, createInitialState, getStatus, promote } from './chess'
 
 describe('createInitialState', () => {
   it('returns the starting position with both clocks at the control', () => {
@@ -97,5 +97,25 @@ describe('captured pieces and special moves', () => {
     }
     state = applyMove(state, 'e1', 'g1') // O-O
     expect(state.history.at(-1)).toBe('O-O')
+  })
+})
+
+describe('promotion', () => {
+  it('sets pendingPromotion when a pawn reaches the last rank', () => {
+    let state = createInitialState({ minutes: 5 })
+    for (const [f, t] of [['e2','e4'], ['d7','d5'], ['e4','d5'], ['c7','c6'], ['d5','c6'], ['a7','a6'], ['c6','c7'], ['a6','a5'], ['c7','b8']] as const) {
+      state = applyMove(state, f, t)
+    }
+    expect(state.pendingPromotion).toEqual({ from: 'c7', to: 'b8' })
+  })
+
+  it('commits the chosen promotion piece', () => {
+    let state = createInitialState({ minutes: 5 })
+    for (const [f, t] of [['e2','e4'], ['d7','d5'], ['e4','d5'], ['c7','c6'], ['d5','c6'], ['a7','a6'], ['c6','c7'], ['a6','a5'], ['c7','b8']] as const) {
+      state = applyMove(state, f, t)
+    }
+    state = promote(state, 'n')
+    expect(state.pendingPromotion).toBeNull()
+    expect(state.history.at(-1)).toBe('cxb8=N')
   })
 })
