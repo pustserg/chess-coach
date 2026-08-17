@@ -22,17 +22,17 @@ export function useChessClock(
     if (!running) return
     const id = setInterval(() => {
       setClocks((prev) => {
-        const next = prev[turn] - TICK_MS
-        if (next <= 0) {
-          clearInterval(id)
-          onTimeoutRef.current(turn)
-          return { ...prev, [turn]: 0 }
-        }
-        return { ...prev, [turn]: next }
+        if (prev[turn] <= 0) return prev
+        return { ...prev, [turn]: Math.max(0, prev[turn] - TICK_MS) }
       })
     }, TICK_MS)
     return () => clearInterval(id)
   }, [running, turn])
+
+  useEffect(() => {
+    if (clocks.w === 0) onTimeoutRef.current('w')
+    else if (clocks.b === 0) onTimeoutRef.current('b')
+  }, [clocks])
 
   const reset = useCallback(() => {
     const ms = timeControl.minutes * 60_000
