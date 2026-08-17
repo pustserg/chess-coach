@@ -4,10 +4,12 @@
 
 * **Frontend:** Next.js (React), Tailwind CSS (Mobile-First Design)
 * **Chess Core & UI:** `chess.js` (rule validation, FEN/PGN generation), `react-chessboard` (interactive board renderer)
-* **Chess Engine:** `stockfish.js` / WebAssembly (client-side engine execution via Web Workers)
-* **Backend & Realtime:** Node.js (Next.js API Routes / App Router) or Python (FastAPI), WebSockets / Supabase Realtime
-* **Database & Auth:** PostgreSQL with Prisma / Supabase ORM, Auth.js / Supabase Auth
-* **AI Coach Engine:** Ollama (`qwen2.5:7b-instruct` or `llama3.1:8b`), PolyGlot opening books (`.bin`), Lichess Opening Explorer API
+* **Chess Engine:** `stockfish` (nmrugg) WebAssembly build, client-side execution via Web Workers
+* **Backend:** Python (FastAPI) — AI Coach pipeline, PolyGlot/Lichess integration, server-side game logic
+* **Realtime:** Supabase Realtime
+* **Database & Auth:** PostgreSQL (managed via Supabase), Supabase Auth (Google OAuth, Magic Link, anonymous)
+* **AI Coach Engine:** Ollama (initial: `qwen2.5:7b-instruct`; later: fine-tuned chess-trainer model), PolyGlot opening books (`.bin`), Lichess Opening Explorer API
+* **Infra:** Docker compose for local
 
 ---
 
@@ -39,7 +41,7 @@ Integrate a client-side Stockfish engine running via WebAssembly to allow single
 
 ### Requirements & Task Checklist
 - [ ] **Client-Side Stockfish WASM:**
-  - Load `stockfish.js` inside a Web Worker to ensure UI thread remains non-blocking during heavy calculations.
+  - Load the `stockfish` WASM build inside a Web Worker to ensure UI thread remains non-blocking during heavy calculations.
 - [ ] **Game Mode Selector:**
   - Mode toggle: "Pass & Play (Local)" vs. "Play vs. Computer".
   - Side selection: White, Black, or Random.
@@ -62,7 +64,7 @@ Enable online play by allowing users to create games, invite friends via shareab
   - Support Google OAuth, Email Magic Link, and Anonymous Guest sessions.
   - User profile dashboard with stats (Games played, Win/Loss/Draw ratios).
 - [ ] **Realtime Multiplayer Engine:**
-  - WebSockets or Supabase Realtime synchronization layer.
+  - Supabase Realtime synchronization layer (Postgres CDC over WebSockets).
   - Room creation flow: Generate unique `gameId` -> Shareable invite URL.
   - Matchmaking state machine: Handle player connection, reconnection timeouts, and spectator mode.
 - [ ] **Database & Game Persistence:**
@@ -84,7 +86,7 @@ Provide an interactive AI Chess Coach capable of explaining positional dynamics,
   - Capture current board state: FEN string, move history, current player, user's target ELO (~2000 ELO focus).
   - Run Stockfish top-line evaluation: Evaluation score (centipawns/mate), Principal Variation (PV) top 3 moves.
 - [ ] **LLM Orchestration & Prompting:**
-  - API endpoint forwarding structured context to Ollama (`qwen2.5:7b-instruct`).
+  - API endpoint forwarding structured context to the fine-tuned coach model via Ollama (base fallback: `qwen2.5:7b-instruct`).
   - System prompt enforcing pedagogical tone suitable for advanced players (focus on pawn structures, weak squares, outposts, and piece activity rather than generic advice).
 
 ---
@@ -104,3 +106,21 @@ Build a comprehensive training hub featuring interactive lessons, opening theory
 - [ ] **Adaptive Personalization:**
   - Analyze user's stored match history to detect recurring blunders or weak opening choices.
   - Auto-generate recommended lessons based on personal game telemetry.
+
+---
+
+## Phase 6: Fine-Tuned Chess Trainer Model
+
+### Objective
+Replace the general-purpose Ollama model with a small, fine-tuned LLM specialized in chess instruction, improving coaching accuracy, reducing hallucinations, and lowering inference cost.
+
+### Requirements & Task Checklist
+- [ ] **Dataset Curation:**
+  - Build a supervised fine-tuning (SFT) dataset of (position, Stockfish evaluation, coach explanation) triples.
+  - Source examples from annotated master games, Lichess Opening Explorer, and coach-generated explanations.
+- [ ] **Model Selection & Training:**
+  - Base model: small open-weight LLM (Qwen 7B family or smaller), fine-tuned with LoRA/QLoRA.
+  - Evaluate with chess-specific metrics: move accuracy, evaluation agreement with Stockfish, and hallucination rate.
+- [ ] **Serving & Cutover:**
+  - Serve the fine-tuned model via Ollama (GGUF) or vLLM.
+  - A/B test against the base model, then cut over the AI Coach pipeline once quality regressions clear.
