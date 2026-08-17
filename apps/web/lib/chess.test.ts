@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import { applyMove, createInitialState, getStatus, promote } from './chess'
+import { applyMove, createInitialState, getLegalTargetSquares, getStatus, promote, undo } from './chess'
 
 describe('createInitialState', () => {
   it('returns the starting position with both clocks at the control', () => {
@@ -117,5 +117,29 @@ describe('promotion', () => {
     state = promote(state, 'n')
     expect(state.pendingPromotion).toBeNull()
     expect(state.history.at(-1)).toBe('cxb8=N')
+  })
+})
+
+describe('undo', () => {
+  it('reverts the last move', () => {
+    let state = createInitialState({ minutes: 5 })
+    state = applyMove(state, 'e2', 'e4')
+    state = applyMove(state, 'e7', 'e5')
+    state = undo(state)
+    expect(state.history).toEqual(['e4'])
+    expect(state.turn).toBe('b')
+  })
+
+  it('is a no-op on the initial position', () => {
+    const state = createInitialState({ minutes: 5 })
+    expect(undo(state)).toBe(state)
+  })
+})
+
+describe('getLegalTargetSquares', () => {
+  it('returns the legal targets for a square', () => {
+    const fen = createInitialState({ minutes: 5 }).fen
+    expect(getLegalTargetSquares(fen, 'e2')).toEqual(['e3', 'e4'])
+    expect(getLegalTargetSquares(fen, 'a1')).toEqual([])
   })
 })

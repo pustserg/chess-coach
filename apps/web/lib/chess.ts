@@ -67,3 +67,27 @@ function commitMove(state: GameState, chess: Chess, move: CommittedMove): GameSt
     pendingPromotion: null,
   }
 }
+
+export function undo(state: GameState): GameState {
+  if (state.history.length === 0) return state
+  const chess = new Chess()
+  for (const san of state.history) chess.move(san)
+  const undone = chess.undo()
+  if (!undone) return state
+  const captured = { w: [...state.captured.w], b: [...state.captured.b] }
+  if (undone.captured) captured[undone.color].pop()
+  return {
+    fen: chess.fen(),
+    history: state.history.slice(0, -1),
+    captured,
+    turn: chess.turn(),
+    status: getStatus(chess),
+    winner: null,
+    pendingPromotion: null,
+  }
+}
+
+export function getLegalTargetSquares(fen: string, from: string): string[] {
+  const chess = new Chess(fen)
+  return chess.moves({ square: from as never, verbose: true }).map((m) => m.to)
+}
