@@ -1,0 +1,11 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js
+.next/
+out/
+
+# misc
+.DS_Store
+*.tsbuildinfo
