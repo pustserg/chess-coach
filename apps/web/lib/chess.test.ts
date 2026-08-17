@@ -134,6 +134,17 @@ describe('undo', () => {
     const state = createInitialState({ minutes: 5 })
     expect(undo(state)).toBe(state)
   })
+
+  it('un-records a captured piece when undoing a capture', () => {
+    let state = createInitialState({ minutes: 5 })
+    state = applyMove(state, 'e2', 'e4')
+    state = applyMove(state, 'd7', 'd5')
+    state = applyMove(state, 'e4', 'd5')
+    expect(state.captured.w).toEqual(['p'])
+    state = undo(state)
+    expect(state.captured.w).toEqual([])
+    expect(state.history).toEqual(['e4', 'd5'])
+  })
 })
 
 describe('getLegalTargetSquares', () => {
