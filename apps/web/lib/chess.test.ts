@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import { createInitialState, getStatus } from './chess'
+import { applyMove, createInitialState, getStatus } from './chess'
 
 describe('createInitialState', () => {
   it('returns the starting position with both clocks at the control', () => {
@@ -52,5 +52,21 @@ describe('getStatus', () => {
 
   it('returns playing for the starting position', () => {
     expect(getStatus(new Chess())).toBe('playing')
+  })
+})
+
+describe('applyMove', () => {
+  it('advances the position, history, and turn', () => {
+    let state = createInitialState({ minutes: 5 })
+    state = applyMove(state, 'e2', 'e4')
+    expect(state.history).toEqual(['e4'])
+    expect(state.turn).toBe('b')
+    expect(state.fen.split(' ')[1]).toBe('b')
+  })
+
+  it('ignores an illegal move', () => {
+    const state = createInitialState({ minutes: 5 })
+    const next = applyMove(state, 'e2', 'e5')
+    expect(next).toBe(state)
   })
 })
