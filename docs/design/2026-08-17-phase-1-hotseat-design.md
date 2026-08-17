@@ -34,7 +34,7 @@ docs/erd.md          entity-relationship diagram (app-wide, forward-looking)
 
 ### State model
 
-One `useReducer` owns all game state. `chess.js` is the rules engine, wrapped by pure functions in `lib/chess.ts` so all rules logic is unit-testable without a browser. The clock is a separate `useChessClock` hook that ticks on the active player's side.
+One `useReducer` owns board state. `chess.js` is the rules engine, wrapped by pure functions in `lib/chess.ts` so all rules logic is unit-testable without a browser. Clock state lives in a separate `useChessClock` hook that counts down on the active player's side and reports a flag (timeout) via callback.
 
 ```
 Player tap/drop
@@ -72,7 +72,6 @@ interface GameState {
   turn: PlayerColor;
   status: GameStatus;
   winner: PlayerColor | null;               // set on checkmate / timeout
-  clocks: { w: number; b: number };         // remaining milliseconds
   pendingPromotion: { from: string; to: string } | null;
 }
 ```
@@ -84,7 +83,7 @@ interface GameState {
   - Delegates legality to chess.js; detects promotion and returns `pendingPromotion` instead of committing.
 - `promote(state: GameState, piece: PromotionPiece): GameState`
 - `undo(state: GameState): GameState`
-- `getStatus(chess, halfmoveClock): GameStatus` — the one place draw/termination rules are decided.
+- `getStatus(chess): GameStatus` — the one place draw/termination rules are decided.
 
 All functions are pure (no side effects, deterministic output for a given input).
 
@@ -110,7 +109,7 @@ Move validation, en passant, castling, and promotion legality are delegated to `
 | Stalemate | `chess.isStalemate()` |
 | Threefold repetition | `chess.isThreefoldRepetition()` |
 | Insufficient material | `chess.isInsufficientMaterial()` |
-| Fifty-move rule | halfmove clock ≥ 100 plies (tracked locally; reset on pawn move or capture) |
+| Fifty-move rule | `chess.isDrawByFiftyMoves()` |
 | Timeout | clock reaches zero |
 
 Order matters: checkmate/stalemate take precedence over draw conditions. Timeout is independent of board state.
@@ -126,7 +125,7 @@ Order matters: checkmate/stalemate take precedence over draw conditions. Timeout
 
 - **Board flip:** three modes — Auto (rotates to face the player to move, default), Manual (tap to flip), Off (white at bottom). One manual flip control always available.
 - **Promotion:** modal piece picker, queen pre-selected; all four piece choices are offered and one must be selected to complete the move.
-- **Highlights:** legal-move squares on piece tap, last-move square, and check indicator (via `react-chessboard` `customSquareStyles`).
+- **Highlights:** legal-move squares on piece tap, last-move square, and check indicator (via `react-chessboard` `squareStyles`).
 - **Controls:** New Game (resets board + clocks + history) and Undo.
 
 ## Error Handling & Edge Cases
@@ -138,7 +137,7 @@ Order matters: checkmate/stalemate take precedence over draw conditions. Timeout
 
 ## Testing Strategy
 
-- **Unit (`lib/chess.ts`):** each status case (checkmate, stalemate, threefold, insufficient material, fifty-move), en passant, castling, promotion detection, captured-piece accounting, halfmove-clock reset, undo.
+- **Unit (`lib/chess.ts`):** each status case (checkmate, stalemate, threefold, insufficient material, fifty-move), en passant, castling, promotion detection, captured-piece accounting, undo.
 - **Unit (`useChessClock`):** countdown, turn switch pauses the other clock, flag fall, no tick after terminal status.
 - **Component/integration:** move → turn switches; checkmate → `GameOverModal`; promotion flow end-to-end; undo restores prior position.
 
