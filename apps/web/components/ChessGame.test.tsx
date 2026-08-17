@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import ChessGame from './ChessGame'
+import ChessGame, { reducer } from './ChessGame'
+import { createInitialState } from '../lib/chess'
 
 // react-chessboard v5 renders each square as a div with a `data-square` attribute
 // (e.g. `data-square="e2"`), not an `aria-label`. Click by that attribute.
@@ -28,5 +29,26 @@ describe('ChessGame', () => {
       await clickSquare(container, to)
     }
     expect(screen.getByText('Black wins')).toBeInTheDocument()
+  })
+
+  it('flips the board orientation manually', async () => {
+    const { container } = render(<ChessGame />)
+    await userEvent.selectOptions(screen.getByLabelText('Board flip'), 'manual')
+    // White orientation: the a1 square sits bottom-left and shows file notation "a".
+    expect(container.querySelector('[data-square="a1"]')).toHaveTextContent('a')
+    await userEvent.click(screen.getByRole('button', { name: 'Flip board' }))
+    // Black orientation: a1 moves to the top-right (no notation) and h8 is bottom-left.
+    expect(container.querySelector('[data-square="a1"]')).not.toHaveTextContent('a')
+    expect(container.querySelector('[data-square="h8"]')).toHaveTextContent('h')
+  })
+})
+
+describe('reducer', () => {
+  it('clears a pending promotion when a timeout occurs', () => {
+    const state = { ...createInitialState({ minutes: 10 }), pendingPromotion: { from: 'e7', to: 'e8' } }
+    const next = reducer(state, { type: 'timeout', color: 'w' })
+    expect(next.status).toBe('timeout')
+    expect(next.winner).toBe('b')
+    expect(next.pendingPromotion).toBeNull()
   })
 })

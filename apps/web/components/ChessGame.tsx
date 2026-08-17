@@ -15,20 +15,20 @@ import GameOverModal from './GameOverModal'
 const TIMECONTROL: TimeControl = { minutes: 10 }
 type FlipMode = 'auto' | 'manual' | 'off'
 
-type Action =
+export type Action =
   | { type: 'move'; from: string; to: string }
   | { type: 'promote'; piece: PromotionPiece }
   | { type: 'undo' }
   | { type: 'new-game' }
   | { type: 'timeout'; color: PlayerColor }
 
-function reducer(state: GameState, action: Action): GameState {
+export function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
     case 'move': return applyMove(state, action.from, action.to)
     case 'promote': return promote(state, action.piece)
     case 'undo': return undo(state)
     case 'new-game': return createInitialState(TIMECONTROL)
-    case 'timeout': return { ...state, status: 'timeout', winner: action.color === 'w' ? 'b' : 'w' }
+    case 'timeout': return { ...state, status: 'timeout', winner: action.color === 'w' ? 'b' : 'w', pendingPromotion: null }
     default: return state
   }
 }
@@ -37,6 +37,7 @@ export default function ChessGame() {
   const [state, dispatch] = useReducer(reducer, TIMECONTROL, createInitialState)
   const [selected, setSelected] = useState<string | null>(null)
   const [flipMode, setFlipMode] = useState<FlipMode>('auto')
+  const [manualOrientation, setManualOrientation] = useState<'white' | 'black'>('white')
 
   const { clocks, reset } = useChessClock(
     state.turn,
@@ -57,7 +58,7 @@ export default function ChessGame() {
   }, [legalTargets])
 
   const boardOrientation = flipMode === 'auto' ? (state.turn === 'w' ? 'white' : 'black')
-    : flipMode === 'manual' ? undefined
+    : flipMode === 'manual' ? manualOrientation
     : 'white'
 
   const handleSquareClick = (square: string) => {
@@ -78,6 +79,8 @@ export default function ChessGame() {
   }
   const handlePieceDrop = (sourceSquare: string, targetSquare: string) => {
     if (TERMINAL_STATUSES.includes(state.status) || state.pendingPromotion) return false
+    const next = applyMove(state, sourceSquare, targetSquare)
+    if (next === state) return false
     dispatch({ type: 'move', from: sourceSquare, to: targetSquare })
     return true
   }
@@ -108,11 +111,18 @@ export default function ChessGame() {
       <PlayerCard color="w" name="White" captured={state.captured.w} remainingMs={clocks.w} active={state.turn === 'w'} />
 
       <div className="flex items-center justify-between">
-        <select aria-label="Board flip" value={flipMode} onChange={(e) => setFlipMode(e.target.value as FlipMode)}>
-          <option value="auto">Auto flip</option>
-          <option value="manual">Manual flip</option>
-          <option value="off">Off</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <select aria-label="Board flip" value={flipMode} onChange={(e) => setFlipMode(e.target.value as FlipMode)}>
+            <option value="auto">Auto flip</option>
+            <option value="manual">Manual flip</option>
+            <option value="off">Off</option>
+          </select>
+          {flipMode === 'manual' && (
+            <button type="button" aria-label="Flip board" onClick={() => setManualOrientation((o) => (o === 'white' ? 'black' : 'white'))} className="rounded-lg bg-gray-100 px-3 py-1">
+              Flip
+            </button>
+          )}
+        </div>
         <div className="flex gap-2">
           <button type="button" onClick={() => dispatch({ type: 'undo' })} className="rounded-lg bg-gray-100 px-3 py-1">Undo</button>
           <button type="button" onClick={newGame} className="rounded-lg bg-blue-600 px-3 py-1 text-white">New Game</button>
