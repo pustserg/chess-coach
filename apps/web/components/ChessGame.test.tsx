@@ -41,6 +41,18 @@ describe('ChessGame', () => {
     expect(container.querySelector('[data-square="a1"]')).not.toHaveTextContent('a')
     expect(container.querySelector('[data-square="h8"]')).toHaveTextContent('h')
   })
+  it('resets to a new game when the time control changes', async () => {
+    const { container } = render(<ChessGame />)
+    const timeControl = screen.getByLabelText('Time control')
+    expect(timeControl).toBeInTheDocument()
+
+    await clickSquare(container, 'e2')
+    await clickSquare(container, 'e4')
+    expect(screen.getByText(/1\. e4/)).toBeInTheDocument()
+
+    await userEvent.selectOptions(timeControl, '3')
+    expect(screen.queryByText(/1\. e4/)).not.toBeInTheDocument()
+  })
 })
 
 describe('reducer', () => {

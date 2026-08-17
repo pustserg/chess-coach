@@ -1,6 +1,6 @@
 import type { GameStatus, PlayerColor } from '../lib/types'
 
-const REASONS: Record<string, string> = {
+const REASONS: Partial<Record<GameStatus, string>> = {
   checkmate: 'Checkmate',
   stalemate: 'Stalemate',
   'threefold-repetition': 'Threefold repetition',

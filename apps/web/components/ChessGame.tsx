@@ -12,7 +12,7 @@ import MoveHistory from './MoveHistory'
 import PromotionModal from './PromotionModal'
 import GameOverModal from './GameOverModal'
 
-const TIMECONTROL: TimeControl = { minutes: 10 }
+const PRESETS = [3, 5, 10] as const
 type FlipMode = 'auto' | 'manual' | 'off'
 
 export type Action =
@@ -27,14 +27,17 @@ export function reducer(state: GameState, action: Action): GameState {
     case 'move': return applyMove(state, action.from, action.to)
     case 'promote': return promote(state, action.piece)
     case 'undo': return undo(state)
-    case 'new-game': return createInitialState(TIMECONTROL)
-    case 'timeout': return { ...state, status: 'timeout', winner: action.color === 'w' ? 'b' : 'w', pendingPromotion: null }
+    case 'new-game': return createInitialState({ minutes: 10 })
+    case 'timeout':
+      if (state.status !== 'playing' && state.status !== 'check') return state
+      return { ...state, status: 'timeout', winner: action.color === 'w' ? 'b' : 'w', pendingPromotion: null }
     default: return state
   }
 }
 
 export default function ChessGame() {
-  const [state, dispatch] = useReducer(reducer, TIMECONTROL, createInitialState)
+  const [timeControl, setTimeControl] = useState<TimeControl>({ minutes: 10 })
+  const [state, dispatch] = useReducer(reducer, timeControl, createInitialState)
   const [selected, setSelected] = useState<string | null>(null)
   const [flipMode, setFlipMode] = useState<FlipMode>('auto')
   const [manualOrientation, setManualOrientation] = useState<'white' | 'black'>('white')
@@ -42,7 +45,7 @@ export default function ChessGame() {
   const { clocks, reset } = useChessClock(
     state.turn,
     state.status,
-    TIMECONTROL,
+    timeControl,
     (color) => dispatch({ type: 'timeout', color }),
   )
 
@@ -112,6 +115,19 @@ export default function ChessGame() {
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
+          <select
+            aria-label="Time control"
+            value={timeControl.minutes}
+            onChange={(e) => {
+              setTimeControl({ minutes: Number(e.target.value) })
+              dispatch({ type: 'new-game' })
+              setSelected(null)
+            }}
+          >
+            {PRESETS.map((m) => (
+              <option key={m} value={m}>{m} min</option>
+            ))}
+          </select>
           <select aria-label="Board flip" value={flipMode} onChange={(e) => setFlipMode(e.target.value as FlipMode)}>
             <option value="auto">Auto flip</option>
             <option value="manual">Manual flip</option>

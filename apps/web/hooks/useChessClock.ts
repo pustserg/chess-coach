@@ -14,6 +14,11 @@ export function useChessClock(
     const ms = timeControl.minutes * 60_000
     return { w: ms, b: ms }
   })
+
+  useEffect(() => {
+    const ms = timeControl.minutes * 60_000
+    setClocks({ w: ms, b: ms })
+  }, [timeControl.minutes])
   const onTimeoutRef = useRef(onTimeout)
   onTimeoutRef.current = onTimeout
   const running = !TERMINAL_STATUSES.includes(status)

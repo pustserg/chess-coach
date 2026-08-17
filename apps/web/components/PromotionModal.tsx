@@ -26,7 +26,7 @@ export default function PromotionModal({
               onClick={() => onSelect(piece)}
               className="h-14 w-14 rounded-lg bg-gray-100 text-3xl"
             >
-              {color === 'w' ? glyph : glyph}
+              {glyph}
             </button>
           ))}
         </div>
