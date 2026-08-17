@@ -70,3 +70,32 @@ describe('applyMove', () => {
     expect(next).toBe(state)
   })
 })
+
+describe('captured pieces and special moves', () => {
+  it('records a regular capture', () => {
+    let state = createInitialState({ minutes: 5 })
+    for (const [f, t] of [['e2','e4'], ['d7','d5'], ['e4','d5']] as const) {
+      state = applyMove(state, f, t)
+    }
+    expect(state.captured.w).toEqual(['p'])
+    expect(state.captured.b).toEqual([])
+  })
+
+  it('records an en passant capture', () => {
+    let state = createInitialState({ minutes: 5 })
+    for (const [f, t] of [['e2','e4'], ['a7','a6'], ['e4','e5'], ['d7','d5'], ['e5','d6']] as const) {
+      state = applyMove(state, f, t)
+    }
+    expect(state.captured.w).toEqual(['p'])
+    expect(state.fen.split(' ')[3]).toBe('-') // no lingering en-passant square
+  })
+
+  it('castles kingside for white', () => {
+    let state = createInitialState({ minutes: 5 })
+    for (const [f, t] of [['e2','e4'], ['e7','e5'], ['g1','f3'], ['g8','f6'], ['f1','e2'], ['f8','e7']] as const) {
+      state = applyMove(state, f, t)
+    }
+    state = applyMove(state, 'e1', 'g1') // O-O
+    expect(state.history.at(-1)).toBe('O-O')
+  })
+})
