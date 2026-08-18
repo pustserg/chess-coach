@@ -59,10 +59,14 @@ export function applyBotMove(state: GameState, uci: string): GameState {
   const to = uci.slice(2, 4)
   const promotion = uci.length >= 5 ? (uci[4] as PromotionPiece) : undefined
   const chess = new Chess(state.fen)
-  const move = promotion
-    ? chess.move({ from, to, promotion })
-    : chess.move({ from, to })
-  return commitMove(state, chess, move)
+  try {
+    const move = promotion
+      ? chess.move({ from, to, promotion })
+      : chess.move({ from, to })
+    return commitMove(state, chess, move)
+  } catch {
+    return state
+  }
 }
 
 function commitMove(state: GameState, chess: Chess, move: CommittedMove): GameState {

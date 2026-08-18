@@ -188,6 +188,12 @@ describe('applyBotMove', () => {
     const state = createInitialState({ minutes: 10 })
     expect(applyBotMove(state, 'e2')).toBe(state)
   })
+
+  it('ignores an illegal well-formed UCI move', () => {
+    const state = createInitialState({ minutes: 10 })
+    expect(applyBotMove(state, 'e2e5')).toBe(state)
+    expect(state.history).toEqual([])
+  })
 })
 
 describe('undoPlies', () => {
