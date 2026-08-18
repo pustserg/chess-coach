@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import { applyMove, createInitialState, getLegalTargetSquares, getStatus, promote, undo } from './chess'
+import { applyBotMove, applyMove, createInitialState, getLegalTargetSquares, getStatus, promote, undo, undoPlies } from './chess'
 
 describe('createInitialState', () => {
   it('returns the starting position with both clocks at the control', () => {
@@ -152,5 +152,60 @@ describe('getLegalTargetSquares', () => {
     const fen = createInitialState({ minutes: 5 }).fen
     expect(getLegalTargetSquares(fen, 'e2')).toEqual(['e3', 'e4'])
     expect(getLegalTargetSquares(fen, 'a1')).toEqual([])
+  })
+})
+
+describe('applyBotMove', () => {
+  it('commits a plain UCI move', () => {
+    const state = createInitialState({ minutes: 10 })
+    const next = applyBotMove(state, 'e2e4')
+    expect(next.history).toEqual(['e4'])
+    expect(next.turn).toBe('b')
+  })
+
+  it('commits a capture and records the captured piece', () => {
+    // Position after 1. e4 d5: white pawn e4 captures d5.
+    const state = {
+      ...createInitialState({ minutes: 10 }),
+      fen: 'rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+    }
+    const next = applyBotMove(state, 'e4d5')
+    expect(next.history).toEqual(['exd5'])
+    expect(next.captured.w).toEqual(['p'])
+  })
+
+  it('commits a promotion without setting pendingPromotion', () => {
+    const state = {
+      ...createInitialState({ minutes: 10 }),
+      fen: '7k/P7/8/8/8/8/8/K7 w - - 0 1',
+    }
+    const next = applyBotMove(state, 'a7a8q')
+    expect(next.pendingPromotion).toBeNull()
+    expect(next.history).toEqual(['a8=Q+'])
+  })
+
+  it('ignores a malformed UCI move', () => {
+    const state = createInitialState({ minutes: 10 })
+    expect(applyBotMove(state, 'e2')).toBe(state)
+  })
+})
+
+describe('undoPlies', () => {
+  it('reverts multiple plies', () => {
+    let state = createInitialState({ minutes: 10 })
+    state = applyMove(state, 'e2', 'e4')
+    state = applyMove(state, 'e7', 'e5')
+    state = applyMove(state, 'g1', 'f3')
+    const next = undoPlies(state, 2)
+    expect(next.history).toEqual(['e4'])
+    expect(next.turn).toBe('b')
+  })
+
+  it('caps at the history length', () => {
+    let state = createInitialState({ minutes: 10 })
+    state = applyMove(state, 'e2', 'e4')
+    const next = undoPlies(state, 5)
+    expect(next.history).toEqual([])
+    expect(next.turn).toBe('w')
   })
 })

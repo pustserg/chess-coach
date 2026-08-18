@@ -53,6 +53,18 @@ export function promote(state: GameState, piece: PromotionPiece): GameState {
   return commitMove(state, chess, move)
 }
 
+export function applyBotMove(state: GameState, uci: string): GameState {
+  if (uci.length < 4) return state
+  const from = uci.slice(0, 2)
+  const to = uci.slice(2, 4)
+  const promotion = uci.length >= 5 ? (uci[4] as PromotionPiece) : undefined
+  const chess = new Chess(state.fen)
+  const move = promotion
+    ? chess.move({ from, to, promotion })
+    : chess.move({ from, to })
+  return commitMove(state, chess, move)
+}
+
 function commitMove(state: GameState, chess: Chess, move: CommittedMove): GameState {
   const captured = { w: [...state.captured.w], b: [...state.captured.b] }
   if (move.captured) captured[move.color].push(move.captured)
@@ -85,6 +97,15 @@ export function undo(state: GameState): GameState {
     winner: null,
     pendingPromotion: null,
   }
+}
+
+export function undoPlies(state: GameState, plies: number): GameState {
+  let current = state
+  for (let i = 0; i < plies; i++) {
+    if (current.history.length === 0) break
+    current = undo(current)
+  }
+  return current
 }
 
 export function getLegalTargetSquares(fen: string, from: string): string[] {
