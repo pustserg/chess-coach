@@ -37,6 +37,20 @@ describe('createEngine', () => {
     await expect(movePromise).resolves.toBe('e2e4')
   })
 
+  it('rejects a second concurrent getBestMove while one is in flight', async () => {
+    const worker = makeWorker()
+    const engine = createEngine(worker)
+    const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+
+    const first = engine.getBestMove(fen, { level: 10, depth: 12 })
+    await expect(engine.getBestMove(fen, { level: 10, depth: 12 })).rejects.toThrow(
+      'engine request already in flight',
+    )
+
+    worker.onmessage!({ data: 'bestmove e2e4' })
+    await expect(first).resolves.toBe('e2e4')
+  })
+
   it('sends stop then ucinewgame on newGame', () => {
     const worker = makeWorker()
     const engine = createEngine(worker)

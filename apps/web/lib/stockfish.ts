@@ -43,6 +43,9 @@ export function createEngine(worker: UciWorker): Engine {
   return {
     ready,
     getBestMove(fen, opts) {
+      if (bestMoveResolve) {
+        return Promise.reject(new Error('engine request already in flight'))
+      }
       return new Promise<string>((resolve) => {
         bestMoveResolve = resolve
         worker.postMessage('setoption name UCI_LimitStrength value true')
