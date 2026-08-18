@@ -116,3 +116,28 @@ export function getLegalTargetSquares(fen: string, from: string): string[] {
   const chess = new Chess(fen)
   return chess.moves({ square: from as never, verbose: true }).map((m) => m.to)
 }
+
+export function getLastMove(history: string[]): { from: string; to: string } | null {
+  if (history.length === 0) return null
+  const chess = new Chess()
+  let last: { from: string; to: string } | null = null
+  for (const san of history) {
+    const move = chess.move(san)
+    if (move) last = { from: move.from, to: move.to }
+  }
+  return last
+}
+
+export function getCheckSquare(fen: string): string | null {
+  const chess = new Chess(fen)
+  if (!chess.inCheck()) return null
+  const turn = chess.turn()
+  for (const row of chess.board()) {
+    for (const piece of row) {
+      if (piece && piece.type === 'k' && piece.color === turn) {
+        return piece.square
+      }
+    }
+  }
+  return null
+}

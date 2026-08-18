@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import { applyBotMove, applyMove, createInitialState, getLegalTargetSquares, getStatus, promote, undo, undoPlies } from './chess'
+import { applyBotMove, applyMove, createInitialState, getCheckSquare, getLastMove, getLegalTargetSquares, getStatus, promote, undo, undoPlies } from './chess'
 
 describe('createInitialState', () => {
   it('returns the starting position with both clocks at the control', () => {
@@ -213,5 +213,28 @@ describe('undoPlies', () => {
     const next = undoPlies(state, 5)
     expect(next.history).toEqual([])
     expect(next.turn).toBe('w')
+  })
+})
+
+describe('getLastMove', () => {
+  it('returns the from/to of the last played move', () => {
+    expect(getLastMove(['e4', 'e5'])).toEqual({ from: 'e7', to: 'e5' })
+  })
+
+  it('returns null for an empty history', () => {
+    expect(getLastMove([])).toBeNull()
+  })
+})
+
+describe('getCheckSquare', () => {
+  it('returns the king square when in check', () => {
+    const chess = new Chess()
+    for (const san of ['f3', 'e5', 'g4', 'Qh4#']) chess.move(san)
+    expect(getCheckSquare(chess.fen())).toBe('e1')
+  })
+
+  it('returns null when not in check', () => {
+    const chess = new Chess()
+    expect(getCheckSquare(chess.fen())).toBeNull()
   })
 })
