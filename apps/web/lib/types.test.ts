@@ -39,4 +39,14 @@ describe('DIFFICULTY_PRESETS', () => {
       expect(o.depth).toBeLessThanOrEqual(20)
     }
   })
+
+  it('pins the exact level and depth for every preset', () => {
+    expect(DIFFICULTY_PRESETS).toEqual({
+      beginner: { level: 1, depth: 2 },
+      casual: { level: 5, depth: 8 },
+      intermediate: { level: 10, depth: 12 },
+      advanced: { level: 15, depth: 16 },
+      expert: { level: 20, depth: 20 },
+    })
+  })
 })
