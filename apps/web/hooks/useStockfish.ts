@@ -6,14 +6,17 @@ import type { Engine, UciWorker } from '../lib/stockfish'
 import type { EngineOptions } from '../lib/types'
 
 const ENGINE_WORKER_URL = '/engine/stockfish-18-lite-single.js'
+const READY_TIMEOUT_MS = 20000
 
 export function useStockfish(enabled: boolean): {
   ready: boolean
+  error: string | null
   getBestMove: (fen: string, opts: EngineOptions) => Promise<string>
   newGame: () => void
 } {
   const engineRef = useRef<Engine | null>(null)
   const [ready, setReady] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const pendingRef = useRef(0)
   const chainRef = useRef<Promise<unknown>>(Promise.resolve())
 
@@ -28,16 +31,34 @@ export function useStockfish(enabled: boolean): {
     const worker = new Worker(ENGINE_WORKER_URL)
     const engine = createEngine(worker as unknown as UciWorker)
     engineRef.current = engine
-    engine.ready.then(() => setReady(true))
+
+    let settled = false
+    const fail = () => {
+      if (settled) return
+      settled = true
+      setError('Engine unavailable')
+    }
+
+    worker.onerror = () => fail()
+    engine.ready.then(() => {
+      settled = true
+      setReady(true)
+    })
+    const timeout = setTimeout(fail, READY_TIMEOUT_MS)
+
     return () => {
+      settled = true
+      clearTimeout(timeout)
       engine.terminate()
       engineRef.current = null
       setReady(false)
+      setError(null)
     }
   }, [enabled])
 
   const getBestMove = useCallback((fen: string, opts: EngineOptions) => {
     const engine = engineRef.current
+    if (error) return Promise.reject(new Error('engine unavailable'))
     if (!engine) return Promise.reject(new Error('engine not initialized'))
     const run = () => engine.getBestMove(fen, opts)
     pendingRef.current += 1
@@ -49,11 +70,11 @@ export function useStockfish(enabled: boolean): {
       () => { pendingRef.current -= 1 },
     )
     return result
-  }, [])
+  }, [error])
 
   const newGame = useCallback(() => {
     engineRef.current?.newGame()
   }, [])
 
-  return { ready, getBestMove, newGame }
+  return { ready, error, getBestMove, newGame }
 }

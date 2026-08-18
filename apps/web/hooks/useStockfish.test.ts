@@ -6,6 +6,7 @@ class FakeWorker {
   static instances: FakeWorker[] = []
   postMessage = vi.fn()
   onmessage: ((event: { data: string }) => void) | null = null
+  onerror: ((event: unknown) => void) | null = null
   terminate = vi.fn()
   constructor(_url: string) {
     FakeWorker.instances.push(this)
@@ -76,5 +77,29 @@ describe('useStockfish', () => {
     })
     await expect(p1).resolves.toBe('e2e4')
     await expect(p2).resolves.toBe('d2d4')
+  })
+
+  it('sets error when the worker fails to load', async () => {
+    const { result } = renderHook(() => useStockfish(true))
+    const worker = FakeWorker.instances[0]
+
+    await act(async () => {
+      worker.onerror!({})
+    })
+
+    expect(result.current.error).toBe('Engine unavailable')
+  })
+
+  it('rejects getBestMove when the engine is unavailable', async () => {
+    const { result } = renderHook(() => useStockfish(true))
+    const worker = FakeWorker.instances[0]
+
+    await act(async () => {
+      worker.onerror!({})
+    })
+
+    await expect(
+      result.current.getBestMove('START_FEN', { level: 5, depth: 8 }),
+    ).rejects.toThrow('engine unavailable')
   })
 })

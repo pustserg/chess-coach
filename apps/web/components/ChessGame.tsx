@@ -80,11 +80,11 @@ export default function ChessGame() {
   const botColor: PlayerColor = resolvedSide === 'white' ? 'b' : 'w'
   const engineOptions = resolveEngineOptions(config)
 
-  const { ready, getBestMove, newGame: engineNewGame } = useStockfish(vsComputer)
+  const { ready, error, getBestMove, newGame: engineNewGame } = useStockfish(vsComputer)
   const handleBotMove = useCallback((uci: string) => dispatch({ type: 'bot-move', uci }), [])
 
   const { thinking } = useBotOpponent({
-    enabled: vsComputer,
+    enabled: vsComputer && !error,
     botColor,
     fen: state.fen,
     turn: state.turn,
@@ -214,7 +214,11 @@ export default function ChessGame() {
             </select>
           </label>
           <DifficultyControl config={config} onChange={setConfig} />
-          {!ready && <p className="text-sm text-amber-600">Engine loading…</p>}
+          {error ? (
+            <p className="text-sm text-red-600">Engine unavailable — switch to Pass & Play to continue</p>
+          ) : !ready ? (
+            <p className="text-sm text-amber-600">Engine loading…</p>
+          ) : null}
         </div>
       )}
 
