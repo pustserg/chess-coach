@@ -1,0 +1,59 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createEngine } from '../lib/stockfish'
+import type { Engine, UciWorker } from '../lib/stockfish'
+import type { EngineOptions } from '../lib/types'
+
+const ENGINE_WORKER_URL = '/engine/stockfish-18-lite-single.js'
+
+export function useStockfish(enabled: boolean): {
+  ready: boolean
+  getBestMove: (fen: string, opts: EngineOptions) => Promise<string>
+  newGame: () => void
+} {
+  const engineRef = useRef<Engine | null>(null)
+  const [ready, setReady] = useState(false)
+  const pendingRef = useRef(0)
+  const chainRef = useRef<Promise<unknown>>(Promise.resolve())
+
+  useEffect(() => {
+    if (!enabled) {
+      engineRef.current?.terminate()
+      engineRef.current = null
+      return
+    }
+    pendingRef.current = 0
+    chainRef.current = Promise.resolve()
+    const worker = new Worker(ENGINE_WORKER_URL)
+    const engine = createEngine(worker as unknown as UciWorker)
+    engineRef.current = engine
+    engine.ready.then(() => setReady(true))
+    return () => {
+      engine.terminate()
+      engineRef.current = null
+      setReady(false)
+    }
+  }, [enabled])
+
+  const getBestMove = useCallback((fen: string, opts: EngineOptions) => {
+    const engine = engineRef.current
+    if (!engine) return Promise.reject(new Error('engine not initialized'))
+    const run = () => engine.getBestMove(fen, opts)
+    pendingRef.current += 1
+    const result = pendingRef.current === 1
+      ? run()
+      : chainRef.current.then(run, run)
+    chainRef.current = result.then(
+      () => { pendingRef.current -= 1 },
+      () => { pendingRef.current -= 1 },
+    )
+    return result
+  }, [])
+
+  const newGame = useCallback(() => {
+    engineRef.current?.newGame()
+  }, [])
+
+  return { ready, getBestMove, newGame }
+}
