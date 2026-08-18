@@ -8,7 +8,7 @@ class FakeWorker {
   onmessage: ((event: { data: string }) => void) | null = null
   onerror: ((event: unknown) => void) | null = null
   terminate = vi.fn()
-  constructor(_url: string) {
+  constructor() {
     FakeWorker.instances.push(this)
   }
 }

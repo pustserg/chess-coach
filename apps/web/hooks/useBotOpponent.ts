@@ -49,7 +49,7 @@ export function useBotOpponent(args: Args): { thinking: boolean } {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [enabled, botColor, fen, turn, status, pendingPromotion, engineOptions, getBestMove, onMove])
+  }, [enabled, botColor, fen, turn, status, pendingPromotion, engineOptions, getBestMove, onMove, live])
 
   return { thinking }
 }
