@@ -1,4 +1,4 @@
-import type { PlayerColor, PromotionPiece } from '../lib/types'
+import type { PromotionPiece } from '../lib/types'
 
 const PIECES: { piece: PromotionPiece; label: string; glyph: string }[] = [
   { piece: 'q', label: 'Queen', glyph: '♛' },
@@ -8,9 +8,8 @@ const PIECES: { piece: PromotionPiece; label: string; glyph: string }[] = [
 ]
 
 export default function PromotionModal({
-  color, onSelect,
+  onSelect,
 }: {
-  color: PlayerColor
   onSelect: (piece: PromotionPiece) => void
 }) {
   return (

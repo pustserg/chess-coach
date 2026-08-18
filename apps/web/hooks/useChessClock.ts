@@ -15,12 +15,10 @@ export function useChessClock(
     return { w: ms, b: ms }
   })
 
-  useEffect(() => {
-    const ms = timeControl.minutes * 60_000
-    setClocks({ w: ms, b: ms })
-  }, [timeControl.minutes])
   const onTimeoutRef = useRef(onTimeout)
-  onTimeoutRef.current = onTimeout
+  useEffect(() => {
+    onTimeoutRef.current = onTimeout
+  }, [onTimeout])
   const running = !TERMINAL_STATUSES.includes(status)
 
   useEffect(() => {
@@ -39,8 +37,8 @@ export function useChessClock(
     else if (clocks.b === 0) onTimeoutRef.current('b')
   }, [clocks])
 
-  const reset = useCallback(() => {
-    const ms = timeControl.minutes * 60_000
+  const reset = useCallback((minutes?: number) => {
+    const ms = (minutes ?? timeControl.minutes) * 60_000
     setClocks({ w: ms, b: ms })
   }, [timeControl.minutes])
 

@@ -1,12 +1,10 @@
 import { formatClock } from '../lib/format'
-import type { PlayerColor } from '../lib/types'
 
 const GLYPHS: Record<string, string> = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛' }
 
 export default function PlayerCard({
-  color, name, captured, remainingMs, active, thinking = false,
+  name, captured, remainingMs, active, thinking = false,
 }: {
-  color: PlayerColor
   name: string
   captured: string[]
   remainingMs: number

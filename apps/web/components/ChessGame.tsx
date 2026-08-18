@@ -223,7 +223,6 @@ export default function ChessGame() {
       )}
 
       <PlayerCard
-        color="b"
         name={topName}
         captured={state.captured.b}
         remainingMs={clocks.b}
@@ -245,7 +244,6 @@ export default function ChessGame() {
       />
 
       <PlayerCard
-        color="w"
         name={bottomName}
         captured={state.captured.w}
         remainingMs={clocks.w}
@@ -259,9 +257,11 @@ export default function ChessGame() {
             aria-label="Time control"
             value={timeControl.minutes}
             onChange={(e) => {
-              setTimeControl({ minutes: Number(e.target.value) })
+              const minutes = Number(e.target.value)
+              setTimeControl({ minutes })
               dispatch({ type: 'new-game' })
               setSelected(null)
+              reset(minutes)
             }}
           >
             {PRESETS.map((m) => (
@@ -295,7 +295,7 @@ export default function ChessGame() {
       <MoveHistory history={state.history} />
 
       {state.pendingPromotion && (
-        <PromotionModal color={state.turn} onSelect={(piece) => dispatch({ type: 'promote', piece })} />
+        <PromotionModal onSelect={(piece) => dispatch({ type: 'promote', piece })} />
       )}
 
       {TERMINAL_STATUSES.includes(state.status) && (
