@@ -102,4 +102,27 @@ describe('useStockfish', () => {
       result.current.getBestMove('START_FEN', { level: 5, depth: 8 }),
     ).rejects.toThrow('engine unavailable')
   })
+
+  it('clears a timeout-only error when readyok arrives late', async () => {
+    vi.useFakeTimers()
+    try {
+      const { result, unmount } = renderHook(() => useStockfish(true))
+      const worker = FakeWorker.instances[0]
+
+      act(() => {
+        vi.advanceTimersByTime(20000)
+      })
+      expect(result.current.error).toBe('Engine unavailable')
+
+      await act(async () => {
+        worker.onmessage!({ data: 'readyok' })
+      })
+      expect(result.current.ready).toBe(true)
+      expect(result.current.error).toBeNull()
+
+      unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

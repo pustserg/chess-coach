@@ -43,9 +43,9 @@ export function useStockfish(enabled: boolean): {
     engine.ready.then(() => {
       settled = true
       setReady(true)
+      setError(null)
     })
     const timeout = setTimeout(fail, READY_TIMEOUT_MS)
-
     return () => {
       settled = true
       clearTimeout(timeout)
