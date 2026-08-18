@@ -36,7 +36,7 @@ describe('ChessGame vs computer', () => {
   })
 
   it('lets the bot move first when the human plays black', async () => {
-    const { container } = render(<ChessGame />)
+    render(<ChessGame />)
     fireEvent.click(screen.getByRole('radio', { name: 'Play vs. Computer' }))
     fireEvent.change(screen.getByLabelText('You play'), { target: { value: 'black' } })
 
@@ -59,5 +59,6 @@ describe('ChessGame vs computer', () => {
     // Undo reverts both plies
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     expect(screen.queryByText('1. e4 e5')).not.toBeInTheDocument()
+    expect(screen.queryByText('1. e4')).not.toBeInTheDocument()
   })
 })

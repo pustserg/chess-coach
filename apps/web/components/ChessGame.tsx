@@ -78,10 +78,7 @@ export default function ChessGame() {
   const vsComputer = config.mode === 'vs-computer'
   const humanColor: PlayerColor = sideToColor(resolvedSide)
   const botColor: PlayerColor = resolvedSide === 'white' ? 'b' : 'w'
-  const engineOptions = useMemo(
-    () => resolveEngineOptions(config),
-    [config.difficulty, config.custom],
-  )
+  const engineOptions = resolveEngineOptions(config)
 
   const { ready, getBestMove, newGame: engineNewGame } = useStockfish(vsComputer)
   const handleBotMove = useCallback((uci: string) => dispatch({ type: 'bot-move', uci }), [])
