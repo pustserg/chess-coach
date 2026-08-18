@@ -565,7 +565,8 @@ Create `apps/web/hooks/useStockfish.ts`:
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createEngine } from '../lib/stockfish'
-import type { Engine, EngineOptions, UciWorker } from '../lib/stockfish'
+import type { Engine, UciWorker } from '../lib/stockfish'
+import type { EngineOptions } from '../lib/types'
 
 const ENGINE_WORKER_URL = '/engine/stockfish-18-lite-single.js'
 
@@ -698,11 +699,11 @@ describe('useBotOpponent', () => {
     expect(args.getBestMove).not.toHaveBeenCalled()
   })
 
-  it('reports thinking only while a move is in flight', async () => {
+  it('reports thinking only on the bot turn', () => {
     const args = makeArgs()
-    const { result } = renderHook(() => useBotOpponent(args))
+    const { result, rerender } = renderHook((a) => useBotOpponent(a), { initialProps: args })
     expect(result.current.thinking).toBe(true)
-    await act(async () => { vi.advanceTimersByTime(800) })
+    rerender({ ...args, turn: 'b' })
     expect(result.current.thinking).toBe(false)
   })
 })
@@ -720,9 +721,8 @@ Create `apps/web/hooks/useBotOpponent.ts`:
 ```ts
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import type { EngineOptions } from '../lib/stockfish'
-import type { GameStatus, PlayerColor } from '../lib/types'
+import { useEffect, useRef } from 'react'
+import type { EngineOptions, GameStatus, PlayerColor } from '../lib/types'
 
 const MIN_DELAY_MS = 300
 const MAX_DELAY_MS = 800
@@ -741,23 +741,20 @@ interface Args {
 
 export function useBotOpponent(args: Args): { thinking: boolean } {
   const { enabled, botColor, fen, turn, status, pendingPromotion, engineOptions, getBestMove, onMove } = args
-  const [thinking, setThinking] = useState(false)
   const generationRef = useRef(0)
+
+  const live = status === 'playing' || status === 'check'
+  const thinking = enabled && live && !pendingPromotion && turn === botColor
 
   useEffect(() => {
     generationRef.current += 1
   }, [fen])
 
   useEffect(() => {
-    if (!enabled) return
-    if (status !== 'playing' && status !== 'check') return
-    if (pendingPromotion) return
-    if (turn !== botColor) return
+    if (!enabled || !live || pendingPromotion || turn !== botColor) return
 
     let cancelled = false
     const generation = generationRef.current
-    setThinking(true)
-
     const delay = MIN_DELAY_MS + Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS)
     const timer = setTimeout(() => {
       getBestMove(fen, engineOptions)
@@ -767,15 +764,11 @@ export function useBotOpponent(args: Args): { thinking: boolean } {
           }
         })
         .catch(() => {})
-        .finally(() => {
-          if (!cancelled) setThinking(false)
-        })
     }, delay)
 
     return () => {
       cancelled = true
       clearTimeout(timer)
-      setThinking(false)
     }
   }, [enabled, botColor, fen, turn, status, pendingPromotion, engineOptions, getBestMove, onMove])
 
