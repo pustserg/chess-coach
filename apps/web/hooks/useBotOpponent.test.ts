@@ -1,14 +1,15 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { GameStatus, PlayerColor } from '../lib/types'
 import { useBotOpponent } from './useBotOpponent'
 
 function makeArgs(overrides: Record<string, unknown> = {}) {
   return {
     enabled: true,
-    botColor: 'w' as const,
+    botColor: 'w' as PlayerColor,
     fen: 'START',
-    turn: 'w' as const,
-    status: 'playing' as const,
+    turn: 'w' as PlayerColor,
+    status: 'playing' as GameStatus,
     pendingPromotion: false,
     engineOptions: { level: 10, depth: 12 },
     getBestMove: vi.fn().mockResolvedValue('e2e4'),
