@@ -40,15 +40,15 @@ Build a fully functional, mobile-first web application enabling two players to p
 Integrate a client-side Stockfish engine running via WebAssembly to allow single-player practice against AI bots of customizable difficulty.
 
 ### Requirements & Task Checklist
-- [ ] **Client-Side Stockfish WASM:**
+- [x] **Client-Side Stockfish WASM:**
   - Load the `stockfish` WASM build inside a Web Worker to ensure UI thread remains non-blocking during heavy calculations.
-- [ ] **Game Mode Selector:**
+- [x] **Game Mode Selector:**
   - Mode toggle: "Pass & Play (Local)" vs. "Play vs. Computer".
   - Side selection: White, Black, or Random.
-- [ ] **Bot Configuration:**
+- [x] **Bot Configuration:**
   - Adjust skill level (Stockfish Skill Level 0 to 20 or depth limiting).
   - Add artificial response delay (300–800ms) for realistic interaction feel.
-- [ ] **Visual Analysis Highlights:**
+- [x] **Visual Analysis Highlights:**
   - Highlight legal moves on piece touch/click.
   - Display check indicator and last move highlights.
 
