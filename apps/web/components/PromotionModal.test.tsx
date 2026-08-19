@@ -6,7 +6,7 @@ import PromotionModal from './PromotionModal'
 describe('PromotionModal', () => {
   it('offers all four pieces and reports the choice', async () => {
     const onSelect = vi.fn()
-    render(<PromotionModal color="w" onSelect={onSelect} />)
+    render(<PromotionModal onSelect={onSelect} />)
     await userEvent.click(screen.getByRole('button', { name: /knight/i }))
     expect(onSelect).toHaveBeenCalledWith('n')
   })
