@@ -1440,6 +1440,7 @@ def test_two_players_move_sync(client):
             state_b = ws_b.receive_json()
             assert state_b["you_are"] == "b"
             assert state_b["status"] == "playing"
+            ws_w.receive_json()  # drain the "game started" broadcast to the already-connected player
 
             ws_w.send_json({"type": "move", "from": "e2", "to": "e4"})
             accepted = ws_w.receive_json()
@@ -1461,6 +1462,7 @@ def test_illegal_move_rejected(client):
         ws_w.receive_json()
         with client.websocket_connect(f"/games/{game['id']}/ws?token={_token(b)}") as ws_b:
             ws_b.receive_json()
+            ws_w.receive_json()  # drain the "game started" broadcast to the already-connected player
             ws_w.send_json({"type": "move", "from": "e2", "to": "e5"})
             msg = ws_w.receive_json()
             assert msg["type"] == "move-rejected"
@@ -1746,13 +1748,6 @@ async def game_ws(websocket: WebSocket, game_id: uuid.UUID):
             session.board = board_from_uci_moves(_move_list(moves))
         await session.add(you_are, websocket)
 
-        connected = {c: True for c in session.connections}
-        await session.broadcast(await _state_message(game, you_are, moves, connected, session.board))
-        for color, pid in (("w", game.white_player_id), ("b", game.black_player_id)):
-            if pid is not None:
-                u = await session_db.get(User, pid)
-                # fill display names for the broadcast
-                # (names are populated by a follow-up broadcast after seat changes)
         await _broadcast_full_state(game, session, session_db)
 
     try:
@@ -1813,7 +1808,7 @@ async def _handle_message(game_id: uuid.UUID, you_are: str, user: User, data: di
                 game.status = "white-won" if you_are == "b" else "black-won"
                 game.ended_at = _utcnow()
                 await session_db.commit()
-                await session.broadcast(await _state_message(game, you_are, await _load_moves(session_db, game.id), {c: True for c in session.connections}, session.board))
+                await _broadcast_full_state(game, session, session_db)
                 return
 
             result = apply_move(session.board, uci)
@@ -1822,9 +1817,9 @@ async def _handle_message(game_id: uuid.UUID, you_are: str, user: User, data: di
                 return
 
             await _persist_move(game, session.board, you_are, elapsed, result, session_db)
+            session.draw_offer = None  # a move implicitly declines a pending draw offer
             await websocket.send_json({"type": "move-accepted", "san": result.san, "uci": result.uci})
-            for color in list(session.connections):
-                await session.send(color, await _state_message(game, color, await _load_moves(session_db, game.id), {c: True for c in session.connections}, session.board))
+            await _broadcast_full_state(game, session, session_db)
             return
 
         if mtype == "ping":
@@ -1864,7 +1859,7 @@ git commit -m "feat: add realtime move flow over WebSocket"
 
 **Interfaces:**
 - Consumes: everything in Task 8, plus `export_pgn` (Task 5).
-- Produces: `clock`/`draw-offered`/`draw-declined`/`game-over`/`opponent-status` messages; clock tick task; draw/resign handlers; reconnect seat re-attach.
+- Produces: `clock`/`draw-offered`/`draw-declined`/`game-over` messages; clock tick task; draw/resign handlers; reconnect seat re-attach.
 
 - [ ] **Step 1: Write the failing tests (draw, resign, reconnect)**
 
@@ -1899,6 +1894,7 @@ def test_resign(client):
         ws_w.receive_json()
         with client.websocket_connect(f"/games/{game['id']}/ws?token={_token(b)}") as ws_b:
             ws_b.receive_json()
+            ws_w.receive_json()  # drain the "game started" broadcast to the already-connected player
             ws_w.send_json({"type": "resign"})
             over = ws_w.receive_json()
             assert over["type"] == "game-over"
@@ -1914,6 +1910,7 @@ def test_reconnect_reattaches_seat(client):
         ws_w.receive_json()
         with client.websocket_connect(f"/games/{game['id']}/ws?token={_token(b)}") as ws_b:
             ws_b.receive_json()
+            ws_w.receive_json()  # drain the "game started" broadcast to the already-connected player
             ws_w.send_json({"type": "move", "from": "e2", "to": "e4"})
             ws_w.receive_json()  # move-accepted
             ws_b.receive_json()  # state
@@ -2022,7 +2019,6 @@ Start the clock task when the game transitions to `playing` (in the seat-assignm
             session.clock_task = asyncio.create_task(_clock_tick(session, session_db))
 ```
 
-Send `opponent-status` on connect/disconnect: after a new seat connects, broadcast to the other seat `{"type": "opponent-status", "connected": true}`; in the `WebSocketDisconnect` handler, after `session.remove`, broadcast `{"type": "opponent-status", "connected": false}` to the remaining connection.
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -2683,7 +2679,13 @@ export function useOnlineGame(gameId: string) {
   const handleMessage = useCallback((e: MessageEvent) => {
     const msg = JSON.parse(e.data) as InMessage
     if (msg.type === 'state') setState(parseState(msg))
-    else if (msg.type === 'game-over') {
+    else if (msg.type === 'clock') {
+      setState((s) => s ? { ...s, clocks: { w_ms: msg.w_ms as number, b_ms: msg.b_ms as number } } : s)
+    } else if (msg.type === 'draw-offered') {
+      setState((s) => s ? { ...s, drawOfferedBy: msg.by as 'w' | 'b' } : s)
+    } else if (msg.type === 'draw-declined') {
+      setState((s) => s ? { ...s, drawOfferedBy: null } : s)
+    } else if (msg.type === 'game-over') {
       setState((s) => s ? {
         ...s,
         result: {
