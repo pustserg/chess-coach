@@ -26,6 +26,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from .auth.routes import router as auth_router, me_router
+
+app.include_router(auth_router)
+app.include_router(me_router)
+
 
 @app.get("/health")
 async def health() -> dict:

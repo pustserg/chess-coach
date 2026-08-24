@@ -8,8 +8,7 @@ os.environ["CREATE_TABLES_ON_STARTUP"] = "1"
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.main import app
@@ -24,8 +23,8 @@ def engine():
 
 
 @pytest.fixture
-def client():
-    # TestClient's `with` triggers lifespan -> create_all on the same loop.
+def client(db):
+    # TestClient's `with` triggers lifespan -> create_all (a no-op after db reset).
     with TestClient(app) as c:
         yield c
 
@@ -36,11 +35,8 @@ def db(engine):
 
     async def reset():
         async with engine.begin() as conn:
-            # Truncate all tables between tests (SQLite-safe order).
-            await conn.execute(text("DELETE FROM moves"))
-            await conn.execute(text("DELETE FROM games"))
-            await conn.execute(text("DELETE FROM users"))
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
 
     asyncio.run(reset())
     yield
-    asyncio.run(reset())
