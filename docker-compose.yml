@@ -1,4 +1,15 @@
 services:
+  api:
+    build:
+      context: ./services/api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://chess:chess@db:5432/chess
+      - JWT_SECRET=dev-secret-change-me
+      - CREATE_TABLES_ON_STARTUP=1
+    depends_on:
+      - db
   web:
     build:
       context: .
@@ -6,3 +17,4 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
