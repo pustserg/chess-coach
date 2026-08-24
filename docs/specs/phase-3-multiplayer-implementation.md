@@ -672,10 +672,40 @@ git commit -m "feat: add password hashing and JWT helpers"
 - Create: `services/api/app/auth/routes.py`
 - Modify: `services/api/app/main.py` (include the auth router)
 - Create: `services/api/tests/test_auth.py`
+- Modify: `services/api/tests/conftest.py` (test isolation fix — see Step 0)
 
 **Interfaces:**
 - Consumes: `get_current_user`, `user_from_token`, `hash_password`, `verify_password`, `create_access_token`, `create_refresh_token`, `decode_token` (Task 3); `User` (Task 2).
 - Produces: `AuthResponse`, `UserOut`, `TokenPair`, `RegisterRequest`, `LoginRequest` (schemas); `POST /auth/register`, `/auth/login`, `/auth/anonymous`, `/auth/refresh`, `/auth/logout`, `/auth/claim`, `GET /me`.
+
+- [ ] **Step 0: Fix test isolation in `conftest.py`**
+
+The Task 1 `conftest.py` does not reset the DB between tests (its `client` fixture does not depend on `db`, and `db` uses fragile `DELETE` statements). Fix both so each test gets a fresh schema:
+
+Replace the `client` fixture (make it depend on `db`) and the `db` fixture (use `drop_all` + `create_all`):
+
+```python
+@pytest.fixture
+def client(db):
+    # TestClient's `with` triggers lifespan -> create_all (a no-op after db reset).
+    with TestClient(app) as c:
+        yield c
+
+
+@pytest.fixture
+def db(engine):
+    import asyncio
+
+    async def reset():
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+
+    asyncio.run(reset())
+    yield
+```
+
+(Remove the now-unused `from sqlalchemy import text` import.)
 
 - [ ] **Step 1: Write the failing auth test**
 
