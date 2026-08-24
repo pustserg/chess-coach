@@ -308,6 +308,8 @@ git commit -m "feat: scaffold FastAPI service with health check and test harness
 - Modify: `services/api/app/models.py` (full `User`/`Game`/`Move`)
 - Create: `services/api/migrations/env.py`, `services/api/migrations/script.py.mako`, `services/api/alembic.ini`
 - Create: `services/api/tests/test_models.py`
+- Create: `services/api/Dockerfile`
+- Create: `services/api/.dockerignore`
 - Modify: `docker-compose.yml` (add `db` service)
 
 **Interfaces:**
@@ -450,7 +452,37 @@ Modify `docker-compose.yml` to include (before `api`):
 
 Add `volumes: { pgdata: {} }` at the top level.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Create the API Dockerfile and `.dockerignore`**
+
+Create `services/api/Dockerfile`:
+
+```dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY . .
+
+RUN pip install --no-cache-dir .
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+```
+
+Create `services/api/.dockerignore`:
+
+```
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+tests
+*.db
+.env
+```
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add services/api docker-compose.yml
