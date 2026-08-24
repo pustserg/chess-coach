@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
@@ -52,7 +53,11 @@ async def register(body: RegisterRequest, session: AsyncSession = Depends(get_se
         is_anonymous=False,
     )
     session.add(user)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
     return _auth_response(user)
 
 
@@ -100,7 +105,11 @@ async def claim(body: ClaimRequest, user: User = Depends(get_current_user), sess
     user.email = body.email.lower()
     user.password_hash = hash_password(body.password)
     user.is_anonymous = False
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
     return _auth_response(user)
 
 
