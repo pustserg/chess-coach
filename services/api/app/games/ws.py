@@ -201,6 +201,45 @@ async def _broadcast_full_state(game: Game, session: GameSession, session_db: As
         await session.send(color, payload)
 
 
+
+async def _game_over(game: Game, session: GameSession, session_db: AsyncSession) -> dict:
+    result = "draw" if game.status == "draw" else ("white" if game.status == "white-won" else "black")
+    white = await session_db.get(User, game.white_player_id) if game.white_player_id else None
+    black = await session_db.get(User, game.black_player_id) if game.black_player_id else None
+    pgn = export_pgn(
+        session.board or chess.Board(),
+        white.display_name if white else "White",
+        black.display_name if black else "Black",
+        {"white": "1-0", "black": "0-1", "draw": "1/2-1/2"}[result],
+    )
+    return {"type": "game-over", "result": result, "reason": game.result_reason, "pgn": pgn}
+
+
+async def _clock_tick(session: GameSession) -> None:
+    while True:
+        await asyncio.sleep(1)
+        async with SessionLocal() as session_db:
+            game = await session_db.get(Game, session.game_id)
+            if game is None or game.status != "playing":
+                return
+            now = _utcnow()
+            elapsed = elapsed_ms(_as_utc(game.last_turn_started_at), now)
+            mover = game.turn
+            remaining = decrement(game.white_clock_ms if mover == "w" else game.black_clock_ms, elapsed)
+            await session.broadcast({
+                "type": "clock",
+                "w_ms": decrement(game.white_clock_ms, elapsed) if mover == "w" else game.white_clock_ms,
+                "b_ms": decrement(game.black_clock_ms, elapsed) if mover == "b" else game.black_clock_ms,
+            })
+            if remaining <= 0:
+                game.result_reason = "timeout"
+                game.status = "white-won" if mover == "b" else "black-won"
+                game.ended_at = _utcnow()
+                await session_db.commit()
+                await session.broadcast(await _game_over(game, session, session_db))
+                return
+
+
 async def _handle_message(game_id: uuid.UUID, you_are: str, user: User, data: dict, websocket: WebSocket) -> None:
     session = registry.get(game_id)
     async with SessionLocal() as session_db:
@@ -235,6 +274,42 @@ async def _handle_message(game_id: uuid.UUID, you_are: str, user: User, data: di
             session.draw_offer = None  # a move implicitly declines a pending draw offer
             await websocket.send_json({"type": "move-accepted", "san": result.san, "uci": result.uci})
             await _broadcast_full_state(game, session, session_db)
+            return
+
+
+        if mtype == "offer-draw":
+            if game.status != "playing":
+                return
+            session.draw_offer = you_are
+            for color in list(session.connections):
+                await session.send(color, {"type": "draw-offered", "by": you_are})
+            return
+
+        if mtype == "accept-draw":
+            if game.status != "playing" or session.draw_offer is None or session.draw_offer == you_are:
+                return
+            game.status = "draw"
+            game.result_reason = "agreed-draw"
+            game.ended_at = _utcnow()
+            await session_db.commit()
+            session.draw_offer = None
+            await session.broadcast(await _game_over(game, session, session_db))
+            return
+
+        if mtype == "decline-draw":
+            session.draw_offer = None
+            for color in list(session.connections):
+                await session.send(color, {"type": "draw-declined"})
+            return
+
+        if mtype == "resign":
+            if game.status != "playing":
+                return
+            game.status = "white-won" if you_are == "b" else "black-won"
+            game.result_reason = "resignation"
+            game.ended_at = _utcnow()
+            await session_db.commit()
+            await session.broadcast(await _game_over(game, session, session_db))
             return
 
         if mtype == "ping":
@@ -291,6 +366,8 @@ async def game_ws(websocket: WebSocket, game_id: uuid.UUID):
         if session.board is None:
             session.board = board_from_uci_moves(_move_list(moves))
         await session.add(you_are, websocket)
+        if game.status == "playing" and session.clock_task is None:
+            session.clock_task = asyncio.create_task(_clock_tick(session))
 
         await _broadcast_full_state(game, session, session_db)
 

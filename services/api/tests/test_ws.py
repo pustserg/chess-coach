@@ -128,3 +128,59 @@ def test_invalid_token_rejected(client):
         msg = ws.receive_json()
         assert msg["type"] == "error"
         assert msg["reason"] == "unauthorized"
+
+def test_draw_offer_and_accept(client):
+    w = _anon(client)
+    b = _anon(client)
+    game = _mk_game(client, {"Authorization": f"Bearer {_token(w)}"})
+    with client.websocket_connect(f"/games/{game['id']}/ws?token={_token(w)}") as ws_w:
+        ws_w.receive_json()
+        with client.websocket_connect(f"/games/{game['id']}/ws?token={_token(b)}") as ws_b:
+            ws_b.receive_json()
+            ws_w.send_json({"type": "offer-draw"})
+            offered = ws_b.receive_json()
+            assert offered["type"] == "draw-offered"
+            assert offered["by"] == "w"
+
+            ws_b.send_json({"type": "accept-draw"})
+            over = ws_b.receive_json()
+            assert over["type"] == "game-over"
+            assert over["result"] == "draw"
+            assert over["reason"] == "agreed-draw"
+
+
+def test_resign(client):
+    w = _anon(client)
+    b = _anon(client)
+    game = _mk_game(client, {"Authorization": f"Bearer {_token(w)}"})
+    with client.websocket_connect(f"/games/{game['id']}/ws?token={_token(w)}") as ws_w:
+        ws_w.receive_json()
+        with client.websocket_connect(f"/games/{game['id']}/ws?token={_token(b)}") as ws_b:
+            ws_b.receive_json()
+            ws_w.receive_json()  # drain the "game started" broadcast to the already-connected player
+            ws_w.send_json({"type": "resign"})
+            over = ws_w.receive_json()
+            assert over["type"] == "game-over"
+            assert over["result"] == "black"
+            assert over["reason"] == "resignation"
+
+
+def test_reconnect_reattaches_seat(client):
+    w = _anon(client)
+    b = _anon(client)
+    game = _mk_game(client, {"Authorization": f"Bearer {_token(w)}"})
+    with client.websocket_connect(f"/games/{game['id']}/ws?token={_token(w)}") as ws_w:
+        ws_w.receive_json()
+        with client.websocket_connect(f"/games/{game['id']}/ws?token={_token(b)}") as ws_b:
+            ws_b.receive_json()
+            ws_w.receive_json()  # drain the "game started" broadcast to the already-connected player
+            ws_w.send_json({"type": "move", "from": "e2", "to": "e4"})
+            ws_w.receive_json()  # move-accepted
+            ws_b.receive_json()  # state
+    # ws_w disconnected (left the with block)
+
+    with client.websocket_connect(f"/games/{game['id']}/ws?token={_token(w)}") as ws_w2:
+        state = ws_w2.receive_json()
+        assert state["type"] == "state"
+        assert state["you_are"] == "w"
+        assert state["san_history"] == ["e4"]

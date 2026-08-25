@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import chess
+import chess.pgn
 
 STARTING_FEN = chess.STARTING_FEN
 
