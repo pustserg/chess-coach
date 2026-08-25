@@ -162,7 +162,7 @@ Clock ticks are computed from `last_turn_started_at` and broadcast in memory; on
 
 - `useAuth` — token storage, `login`/`register`/`guest`/`logout`, authenticated fetch helper.
 - `useOnlineGame` — WS connect with backoff reconnect, parses server messages into an `OnlineGameState`, exposes `sendMove`/`resign`/`offerDraw`/`acceptDraw`/`declineDraw`.
-- `OnlineGame` — reuses `Chessboard`, `PlayerCard`, `MoveHistory`, `PromotionModal`, `GameOverModal`. Promotion is detected client-side (the existing `pendingPromotion` pattern) and the chosen piece is sent in the move intent. Captured pieces and the check highlight are derived from the authoritative FEN.
+- `OnlineGame` — reuses `Chessboard`, `PlayerCard`, `MoveHistory`, `PromotionModal`, `GameOverModal`. Promotion is detected client-side (the existing `pendingPromotion` pattern) and the chosen piece is sent in the move intent. Captured pieces (`captured`) are included in the authoritative `state` message; the check highlight is derived from the authoritative FEN.
 - Routes: `/online` (create + share link) and `/game/[id]` (the game). The `/` homepage gains an "Play online" entry; local modes stay where they are.
 - `GameMode` gains `'online'`; `types.ts` gains an `OnlineGameState` mirroring the server `state` message (kept separate from the client-only `GameState` to avoid forcing the server to reproduce client-only fields).
 

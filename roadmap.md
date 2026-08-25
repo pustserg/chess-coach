@@ -6,8 +6,8 @@
 * **Chess Core & UI:** `chess.js` (rule validation, FEN/PGN generation), `react-chessboard` (interactive board renderer)
 * **Chess Engine:** `stockfish` (nmrugg) WebAssembly build, client-side execution via Web Workers
 * **Backend:** Python (FastAPI) — AI Coach pipeline, PolyGlot/Lichess integration, server-side game logic
-* **Realtime:** Supabase Realtime
-* **Database & Auth:** PostgreSQL (managed via Supabase), Supabase Auth (Google OAuth, Magic Link, anonymous)
+* **Realtime:** Native WebSocket realtime (FastAPI)
+* **Database & Auth:** PostgreSQL + custom JWT auth (email/password + anonymous)
 * **AI Coach Engine:** Ollama (initial: `qwen2.5:7b-instruct`; later: fine-tuned chess-trainer model), PolyGlot opening books (`.bin`), Lichess Opening Explorer API
 * **Infra:** Docker compose for local
 
@@ -59,18 +59,21 @@ Integrate a client-side Stockfish engine running via WebAssembly to allow single
 ### Objective
 Enable online play by allowing users to create games, invite friends via shareable links, authenticate, and persist game history.
 
-### Requirements & Task Checklist
-- [ ] **Authentication & User Profiles:**
-  - Support Google OAuth, Email Magic Link, and Anonymous Guest sessions.
+- [x] **Authentication & User Profiles:**
+  - Email/password registration and login (Argon2 + JWT).
+  - Anonymous guest sessions (shareable link lets opponent play instantly with no signup).
   - User profile dashboard with stats (Games played, Win/Loss/Draw ratios).
-- [ ] **Realtime Multiplayer Engine:**
-  - Supabase Realtime synchronization layer (Postgres CDC over WebSockets).
+  - [ ] Google OAuth (deferred).
+  - [ ] Email Magic Link (deferred).
+- [x] **Realtime Multiplayer Engine:**
+  - Native WebSocket realtime layer (FastAPI, server-authoritative).
   - Room creation flow: Generate unique `gameId` -> Shareable invite URL.
-  - Matchmaking state machine: Handle player connection, reconnection timeouts, and spectator mode.
+  - Connection handling: player connection, reconnection timeouts.
   - Draw offers and resignation: offer/accept/decline a draw; resign ends the game and records the result.
-- [ ] **Database & Game Persistence:**
-  - PostgreSQL schema for `Users`, `Games`, `Moves`, and `Ratings`.
+- [x] **Database & Game Persistence:**
+  - PostgreSQL schema for `Users`, `Games`, and `Moves`.
   - Store completed PGNs, game duration, termination reasons, and timestamped move logs.
+  - [ ] `Ratings` table (deferred).
 
 ---
 
