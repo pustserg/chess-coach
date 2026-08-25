@@ -1,4 +1,4 @@
-import type { AuthResponse, GameSummary, OnlineGameState, Stats } from './types'
+import type { GameSummary, OnlineGameState, OnlinePlayer, OnlineStatus, PlayerColor, ResultReason, Stats } from './types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 const TOKENS_KEY = 'chess-trainer-tokens'
@@ -90,9 +90,36 @@ export function wsUrl(gameId: string, token: string): string {
   return `${base}/games/${gameId}/ws?token=${token}`
 }
 
+interface PlayerWire {
+  id: string | null
+  display_name: string | null
+  connected: boolean
+}
+
+interface StateWire {
+  status: OnlineStatus
+  turn: PlayerColor
+  fen: string
+  san_history: string[]
+  last_move: { from: string; to: string } | null
+  check: boolean
+  check_square: string | null
+  clocks: { w_ms: number; b_ms: number }
+  white: PlayerWire
+  black: PlayerWire
+  you_are: PlayerColor
+  captured: { w: string[]; b: string[] }
+  result: { result: 'white' | 'black' | 'draw'; reason: string } | null
+  draw_offered_by: PlayerColor | null
+}
+
 export function parseState(wire: unknown): OnlineGameState {
-  const s = wire as Record<string, any>
-  const player = (p: any) => ({ id: p?.id ?? null, displayName: p?.display_name ?? null, connected: p?.connected ?? false })
+  const s = wire as StateWire
+  const player = (p: PlayerWire): OnlinePlayer => ({
+    id: p.id,
+    displayName: p.display_name,
+    connected: p.connected,
+  })
   return {
     status: s.status,
     turn: s.turn,
@@ -106,7 +133,7 @@ export function parseState(wire: unknown): OnlineGameState {
     black: player(s.black),
     youAre: s.you_are,
     captured: s.captured ?? { w: [], b: [] },
-    result: s.result ?? null,
+    result: s.result ? { result: s.result.result, reason: s.result.reason as ResultReason } : null,
     drawOfferedBy: s.draw_offered_by ?? null,
   }
 }

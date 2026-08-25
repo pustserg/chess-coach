@@ -59,16 +59,13 @@ function OnlineGameBoard({ gameId }: { gameId: string }) {
 
   const myTurn = state?.turn === state?.youAre
 
-  const squareStyles = useMemo(() => {
-    const styles: Record<string, React.CSSProperties> = {}
-    for (const sq of legalTargets) styles[sq] = { backgroundColor: 'rgba(34,197,94,0.4)' }
-    if (state?.lastMove) {
-      styles[state.lastMove.from] = { backgroundColor: 'rgba(250,204,21,0.5)' }
-      styles[state.lastMove.to] = { backgroundColor: 'rgba(250,204,21,0.5)' }
-    }
-    if (checkSquare) styles[checkSquare] = { backgroundColor: 'rgba(239,68,68,0.5)' }
-    return styles
-  }, [legalTargets, state?.lastMove, checkSquare])
+  const squareStyles: Record<string, React.CSSProperties> = {}
+  for (const sq of legalTargets) squareStyles[sq] = { backgroundColor: 'rgba(34,197,94,0.4)' }
+  if (state?.lastMove) {
+    squareStyles[state.lastMove.from] = { backgroundColor: 'rgba(250,204,21,0.5)' }
+    squareStyles[state.lastMove.to] = { backgroundColor: 'rgba(250,204,21,0.5)' }
+  }
+  if (checkSquare) squareStyles[checkSquare] = { backgroundColor: 'rgba(239,68,68,0.5)' }
 
   if (!state) {
     return <p className="text-gray-500">Connecting…</p>

@@ -15,26 +15,30 @@ import {
 
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => getTokens() !== null)
 
   useEffect(() => {
     const tokens = getTokens()
-    if (!tokens) { setLoading(false); return }
+    if (!tokens) return
+    let cancelled = false
     ;(async () => {
       try {
-        setUser(await getMe(tokens.access_token))
+        const me = await getMe(tokens.access_token)
+        if (!cancelled) setUser(me)
       } catch {
         try {
           const next = await refresh(tokens.refresh_token)
+          if (cancelled) return
           setTokens(next.tokens)
           setUser(next.user)
         } catch {
-          clearTokens()
+          if (!cancelled) clearTokens()
         }
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     })()
+    return () => { cancelled = true }
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {

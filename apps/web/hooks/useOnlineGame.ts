@@ -10,8 +10,6 @@ export function useOnlineGame(gameId: string) {
   const [state, setState] = useState<OnlineGameState | null>(null)
   const [connected, setConnected] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
-  const gameIdRef = useRef(gameId)
-  gameIdRef.current = gameId
 
   const send = useCallback((msg: object) => {
     const ws = wsRef.current
@@ -44,7 +42,7 @@ export function useOnlineGame(gameId: string) {
     const connect = () => {
       const token = getTokens()?.access_token
       if (!token || closed) return
-      const ws = new WebSocket(wsUrl(gameIdRef.current, token))
+      const ws = new WebSocket(wsUrl(gameId, token))
       wsRef.current = ws
       ws.onopen = () => setConnected(true)
       ws.onmessage = handleMessage
@@ -55,7 +53,7 @@ export function useOnlineGame(gameId: string) {
     }
     connect()
     return () => { closed = true; if (retry) clearTimeout(retry); wsRef.current?.close() }
-  }, [handleMessage])
+  }, [gameId, handleMessage])
 
   const sendMove = useCallback((from: string, to: string, promotion?: string) =>
     send({ type: 'move', from, to, promotion }), [send])
