@@ -993,7 +993,7 @@ def test_apply_illegal_move():
 
 
 def test_capture_records_captured_piece():
-    board = board_from_uci_moves(["e2e4", "d7d5", "e4d5"])
+    board = board_from_uci_moves(["e2e4", "d7d5"])
     r = apply_move(board, "e4d5")
     assert r.captured == "p"
 
@@ -1005,22 +1005,22 @@ def test_en_passant_captures_pawn():
 
 
 def test_promotion():
-    board = board_from_uci_moves(["g2g4", "h7h5", "g4h5", "a7a6", "h5h6", "a6a5", "h6g7", "a5a4"])
-    r = apply_move(board, "g7g8q")
+    board = board_from_uci_moves(["a2a4", "g8f6", "a4a5", "f6g8", "a5a6", "g8f6", "a6b7", "f6g8"])
+    r = apply_move(board, "b7a8q")
     assert r.ok is True
-    assert r.san == "g8=Q"
+    assert r.san == "bxa8=Q"
     assert r.result_reason is None
 
 
 def test_checkmate_detected():
-    board = board_from_uci_moves(["f2f3", "e7e5", "g2g4", "d8h4"])
+    board = board_from_uci_moves(["f2f3", "e7e5", "g2g4"])
     r = apply_move(board, "d8h4")
     assert r.result_reason == "checkmate"
     assert r.winner == "b"
 
 
 def test_stalemate_detected():
-    board = board_from_uci_moves(["e2e3", "a7a5", "d1h5", "a8a6", "h5a5", "h7h5", "h2h4", "a6h6", "a5c7", "f7f6", "c7d7", "e8f7", "d7b7", "d8d3", "b7b8", "d3h7", "b8c8", "f7g6", "c8e6"])
+    board = board_from_uci_moves(["e2e3", "a7a5", "d1h5", "a8a6", "h5a5", "h7h5", "h2h4", "a6h6", "a5c7", "f7f6", "c7d7", "e8f7", "d7b7", "d8d3", "b7b8", "d3h7", "b8c8", "f7g6"])
     r = apply_move(board, "c8e6")
     assert r.result_reason == "stalemate"
 
