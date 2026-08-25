@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { clearTokens } from '../lib/api'
 import { Chessboard } from 'react-chessboard'
 import { Chess } from 'chess.js'
 import { useOnlineGame } from '../hooks/useOnlineGame'
@@ -40,9 +42,12 @@ export default function OnlineGame({ gameId }: { gameId: string }) {
 }
 
 function OnlineGameBoard({ gameId }: { gameId: string }) {
-  const { state, connected, sendMove, resign, offerDraw, acceptDraw, declineDraw } = useOnlineGame(gameId)
+  const { state, connected, sendMove, resign, offerDraw, acceptDraw, declineDraw, error, lastError } = useOnlineGame(gameId)
   const [selected, setSelected] = useState<string | null>(null)
   const [promotion, setPromotion] = useState<{ from: string; to: string } | null>(null)
+  useEffect(() => {
+    if (error) clearTokens()
+  }, [error])
 
   const topIsBlack = state?.youAre === 'w'
   const opponent = state ? (state.youAre === 'w' ? state.black : state.white) : null
@@ -66,6 +71,15 @@ function OnlineGameBoard({ gameId }: { gameId: string }) {
     squareStyles[state.lastMove.to] = { backgroundColor: 'rgba(250,204,21,0.5)' }
   }
   if (checkSquare) squareStyles[checkSquare] = { backgroundColor: 'rgba(239,68,68,0.5)' }
+
+  if (error) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4 p-4 text-center">
+        <p className="text-red-600">{error}</p>
+        <Link href="/online" className="rounded-lg bg-blue-600 px-3 py-2 text-white">Back to lobby</Link>
+      </div>
+    )
+  }
 
   if (!state) {
     return <p className="text-gray-500">Connecting…</p>
@@ -97,6 +111,7 @@ function OnlineGameBoard({ gameId }: { gameId: string }) {
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 p-4">
+      {lastError && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{lastError}</p>}
       {!connected && <p className="rounded-lg bg-amber-50 p-2 text-sm text-amber-700">Reconnecting…</p>}
       {!opponent?.connected && <p className="rounded-lg bg-gray-100 p-2 text-sm text-gray-600">Opponent disconnected — the clock keeps running</p>}
       {state.status === 'waiting' && <p className="text-sm text-gray-600">Waiting for opponent — share the link to invite them</p>}

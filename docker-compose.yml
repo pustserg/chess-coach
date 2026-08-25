@@ -22,7 +22,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://chess:${POSTGRES_PASSWORD:-chess}@db:5432/chess
       # No default: must be explicitly provided in the environment.
-      - JWT_SECRET=${JWT_SECRET:-}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - CREATE_TABLES_ON_STARTUP=1
     depends_on:
       db:

@@ -1,9 +1,11 @@
 import { render, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import OnlineGame from './OnlineGame'
 
 const useOnlineGame = vi.hoisted(() => vi.fn())
 const useAuth = vi.hoisted(() => vi.fn())
+const clearTokens = vi.hoisted(() => vi.fn())
 
 vi.mock('../hooks/useOnlineGame', () => ({
   useOnlineGame,
@@ -11,6 +13,15 @@ vi.mock('../hooks/useOnlineGame', () => ({
 
 vi.mock('../hooks/useAuth', () => ({
   useAuth,
+}))
+
+vi.mock('../lib/api', () => ({
+  clearTokens,
+}))
+vi.mock('next/link', () => ({
+  default: ({ href, children }: { href: string; children: ReactNode }) => (
+    <a href={href}>{children}</a>
+  ),
 }))
 
 const baseState = {
@@ -39,6 +50,8 @@ function setState(overrides: Record<string, unknown> = {}) {
     offerDraw: vi.fn(),
     acceptDraw: vi.fn(),
     declineDraw: vi.fn(),
+    error: null,
+    lastError: null,
   })
 }
 
@@ -53,6 +66,7 @@ function setAuth({ user, loading, token }: { user: unknown; loading: boolean; to
 
 describe('OnlineGame', () => {
   beforeEach(() => {
+    clearTokens.mockClear()
     setState()
     setAuth({ user: { id: '1', displayName: 'Ann' }, loading: false, token: 'a' })
   })
@@ -91,5 +105,43 @@ describe('OnlineGame', () => {
     setAuth({ user: null, loading: false, token: 'a' })
     render(<OnlineGame gameId="g1" />)
     expect(screen.getByText('Bob')).toBeInTheDocument()
+  })
+
+  it('shows the session-expired message and lobby link, and clears tokens, on a terminal error', () => {
+    useOnlineGame.mockReturnValue({
+      state: null,
+      connected: false,
+      sendMove: vi.fn(),
+      resign: vi.fn(),
+      offerDraw: vi.fn(),
+      acceptDraw: vi.fn(),
+      declineDraw: vi.fn(),
+      error: 'Your session has expired. Please sign in again.',
+      lastError: null,
+    })
+    render(<OnlineGame gameId="g1" />)
+    expect(screen.getByText('Your session has expired. Please sign in again.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /back to lobby/i })).toBeInTheDocument()
+    expect(screen.queryByText('Bob')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /resign/i })).not.toBeInTheDocument()
+    expect(clearTokens).toHaveBeenCalled()
+  })
+
+  it('renders a transient error banner for lastError', () => {
+    useOnlineGame.mockReturnValue({
+      state: { ...baseState },
+      connected: true,
+      sendMove: vi.fn(),
+      resign: vi.fn(),
+      offerDraw: vi.fn(),
+      acceptDraw: vi.fn(),
+      declineDraw: vi.fn(),
+      error: null,
+      lastError: 'Move rejected: not your turn',
+    })
+    render(<OnlineGame gameId="g1" />)
+    expect(screen.getByText('Move rejected: not your turn')).toBeInTheDocument()
+    expect(screen.getByText('Bob')).toBeInTheDocument()
+    expect(clearTokens).not.toHaveBeenCalled()
   })
 })
