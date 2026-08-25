@@ -30,11 +30,13 @@ app.add_middleware(
 from .auth.routes import router as auth_router, me_router
 from .games.routes import router as games_router
 from .games.ws import router as ws_router
+from .profile import router as profile_router
 
 app.include_router(auth_router)
 app.include_router(me_router)
 app.include_router(games_router)
 app.include_router(ws_router)
+app.include_router(profile_router)
 
 
 @app.get("/health")
