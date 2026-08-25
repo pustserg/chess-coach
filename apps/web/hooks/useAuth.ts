@@ -15,29 +15,33 @@ import {
 
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(() => getTokens() !== null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const tokens = getTokens()
-    if (!tokens) return
     let cancelled = false
-    ;(async () => {
+    const run = async () => {
+      const tokens = getTokens()
+      await Promise.resolve()
+      if (cancelled) return
+      if (!tokens) {
+        setLoading(false)
+        return
+      }
       try {
         const me = await getMe(tokens.access_token)
         if (!cancelled) setUser(me)
       } catch {
         try {
           const next = await refresh(tokens.refresh_token)
-          if (cancelled) return
-          setTokens(next.tokens)
-          setUser(next.user)
+          if (!cancelled) { setTokens(next.tokens); setUser(next.user) }
         } catch {
           if (!cancelled) clearTokens()
         }
       } finally {
         if (!cancelled) setLoading(false)
       }
-    })()
+    }
+    run()
     return () => { cancelled = true }
   }, [])
 

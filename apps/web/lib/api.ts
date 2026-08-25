@@ -9,15 +9,18 @@ export interface AuthResponseWire { user: { id: string; email: string | null; di
 export interface GameCreated { id: string }
 
 export function getTokens(): Tokens | null {
+  if (typeof window === 'undefined') return null
   const raw = localStorage.getItem(TOKENS_KEY)
   return raw ? (JSON.parse(raw) as Tokens) : null
 }
 
 export function setTokens(t: Tokens): void {
+  if (typeof window === 'undefined') return
   localStorage.setItem(TOKENS_KEY, JSON.stringify(t))
 }
 
 export function clearTokens(): void {
+  if (typeof window === 'undefined') return
   localStorage.removeItem(TOKENS_KEY)
 }
 
