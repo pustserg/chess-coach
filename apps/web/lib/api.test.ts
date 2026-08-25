@@ -9,7 +9,7 @@ describe('apiFetch', () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), { status: 200 }),
     )
-    const res = await apiFetch('/x', { method: 'POST', body: { a: 1 } })
+    const res = await apiFetch('/x', { method: 'POST', body: JSON.stringify({ a: 1 }) })
     expect(res).toEqual({ ok: true })
     expect(fetchMock).toHaveBeenCalledWith(
       'http://localhost:8000/x',
