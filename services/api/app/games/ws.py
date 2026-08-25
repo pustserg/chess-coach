@@ -283,6 +283,7 @@ async def game_ws(websocket: WebSocket, game_id: uuid.UUID):
         if game.status == "waiting" and game.white_player_id is not None and game.black_player_id is not None:
             game.status = "playing"
             game.started_at = _utcnow()
+            game.last_turn_started_at = _utcnow()
             await session_db.commit()
 
         moves = await _load_moves(session_db, game.id)

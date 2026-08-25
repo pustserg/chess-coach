@@ -1,4 +1,10 @@
+import asyncio
 import uuid
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import update
+
+from app.models import Game
 
 
 def _anon(client):
@@ -83,6 +89,37 @@ def test_third_connection_rejected(client):
                 msg = ws_c.receive_json()
                 assert msg["type"] == "error"
                 assert msg["reason"] == "game-full"
+
+
+def test_waiting_time_not_decremented(client, db, engine):
+    w = _anon(client)
+    b = _anon(client)
+    game = _mk_game(client, {"Authorization": f"Bearer {_token(w)}"}, minutes=5)
+    full = 5 * 60 * 1000  # 300000 ms
+
+    # Simulate white waiting 60s for an opponent by backdating the clock start.
+    async def backdate():
+        async with engine.begin() as conn:
+            await conn.execute(
+                update(Game)
+                .where(Game.id == uuid.UUID(game["id"]))
+                .values(last_turn_started_at=datetime.now(timezone.utc) - timedelta(seconds=60))
+            )
+
+    asyncio.run(backdate())
+
+    with client.websocket_connect(f"/games/{game['id']}/ws?token={_token(w)}") as ws_w:
+        ws_w.receive_json()  # waiting state for white
+        with client.websocket_connect(f"/games/{game['id']}/ws?token={_token(b)}") as ws_b:
+            state_b = ws_b.receive_json()
+            assert state_b["status"] == "playing"
+            # The clock starts at game start, not creation: the simulated 60s
+            # wait must not be deducted from either player's clock.
+            assert state_b["clocks"]["w_ms"] >= full - 1000
+            assert state_b["clocks"]["b_ms"] == full
+            started = ws_w.receive_json()  # game-started broadcast to white
+            assert started["clocks"]["w_ms"] >= full - 1000
+            assert started["clocks"]["b_ms"] == full
 
 
 def test_invalid_token_rejected(client):
