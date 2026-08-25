@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 class RegisterRequest(BaseModel):
@@ -42,7 +42,7 @@ class AuthResponse(BaseModel):
 
 class GameCreate(BaseModel):
     side: str = "white"  # "white" | "black"
-    time_control_minutes: int = 10
+    time_control_minutes: int = Field(10, gt=0, le=180)
 
 
 class GameOut(BaseModel):

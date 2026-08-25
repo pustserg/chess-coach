@@ -56,3 +56,12 @@ def test_abort_forbidden_for_non_creator(client):
     other = _anon(client)
     r = client.post(f"/games/{game['id']}/abort", headers=_auth(client, other))
     assert r.status_code == 403
+
+
+
+def test_time_control_bounds_rejected(client):
+    body = _anon(client)
+    headers = _auth(client, body)
+    for minutes in (0, -5, 181):
+        r = client.post("/games", json={"side": "white", "time_control_minutes": minutes}, headers=headers)
+        assert r.status_code == 422, f"expected 422 for {minutes}, got {r.status_code}"

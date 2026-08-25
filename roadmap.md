@@ -62,7 +62,8 @@ Enable online play by allowing users to create games, invite friends via shareab
 - [x] **Authentication & User Profiles:**
   - Email/password registration and login (Argon2 + JWT).
   - Anonymous guest sessions (shareable link lets opponent play instantly with no signup).
-  - User profile dashboard with stats (Games played, Win/Loss/Draw ratios).
+  - [x] User stats endpoint (backend `/me/stats` + client `getStats`).
+  - [ ] User profile dashboard UI with stats (Games played, Win/Loss/Draw ratios) — deferred.
   - [ ] Google OAuth (deferred).
   - [ ] Email Magic Link (deferred).
 - [x] **Realtime Multiplayer Engine:**

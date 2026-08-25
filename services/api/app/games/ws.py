@@ -51,10 +51,17 @@ class GameSession:
         self.clock_task: asyncio.Task | None = None
 
     async def add(self, color: str, ws: WebSocket) -> None:
+        existing = self.connections.get(color)
+        if existing is not None and existing is not ws:
+            try:
+                await existing.close()
+            except Exception:
+                pass
         self.connections[color] = ws
 
-    def remove(self, color: str) -> None:
-        self.connections.pop(color, None)
+    def remove(self, color: str, ws: WebSocket | None = None) -> None:
+        if ws is None or self.connections.get(color) is ws:
+            self.connections.pop(color, None)
 
     async def send(self, color: str, message: dict) -> None:
         ws = self.connections.get(color)
@@ -118,7 +125,7 @@ def _captured(board: chess.Board) -> dict:
 
 async def _state_message(
     game: Game, you_are: str, moves: list[Move], connected: dict[str, bool],
-    board: chess.Board,
+    board: chess.Board, draw_offer: str | None = None,
 ) -> dict:
     now = _utcnow()
     elapsed = elapsed_ms(_as_utc(game.last_turn_started_at), now)
@@ -144,7 +151,7 @@ async def _state_message(
         "you_are": you_are,
         "captured": _captured(board) if board else {"w": [], "b": []},
         "result": _result_payload(game),
-        "draw_offered_by": None,
+        "draw_offered_by": draw_offer,
     }
 
 
@@ -189,7 +196,7 @@ async def _broadcast_full_state(game: Game, session: GameSession, session_db: As
     connected = {c: True for c in session.connections}
 
     for color in list(session.connections):
-        payload = await _state_message(game, color, moves, connected, session.board)
+        payload = await _state_message(game, color, moves, connected, session.board, session.draw_offer)
         # fill display names
         for seat, pid in (("w", game.white_player_id), ("b", game.black_player_id)):
             if pid is not None:
@@ -370,14 +377,13 @@ async def game_ws(websocket: WebSocket, game_id: uuid.UUID):
             session.clock_task = asyncio.create_task(_clock_tick(session))
 
         await _broadcast_full_state(game, session, session_db)
-
     try:
         while True:
             data = await websocket.receive_json()
             await _handle_message(game_id, you_are, user, data, websocket)
     except WebSocketDisconnect:
         session = registry.get(game_id)
-        session.remove(you_are)
+        session.remove(you_are, websocket)
         async with SessionLocal() as session_db:
             game = await session_db.get(Game, game_id)
             if game is not None:
