@@ -5,6 +5,7 @@ export type PromotionPiece = 'q' | 'r' | 'b' | 'n'
 export type GameStatus =
   | 'playing' | 'check' | 'checkmate' | 'stalemate'
   | 'threefold-repetition' | 'insufficient-material' | 'fifty-move' | 'timeout'
+  | 'resignation' | 'agreed-draw'
 export interface TimeControl { minutes: number }
 export interface GameState {
   fen: string

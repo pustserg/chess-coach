@@ -7,6 +7,8 @@ const REASONS: Partial<Record<GameStatus, string>> = {
   'insufficient-material': 'Insufficient material',
   'fifty-move': 'Fifty-move rule',
   timeout: 'Time out',
+  resignation: 'Resignation',
+  'agreed-draw': 'Agreed draw',
 }
 
 export default function GameOverModal({
