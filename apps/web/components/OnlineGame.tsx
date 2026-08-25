@@ -24,15 +24,25 @@ const REASON_STATUS: Record<ResultReason, GameStatus> = {
 }
 
 export default function OnlineGame({ gameId }: { gameId: string }) {
+  const { loading, guest, getAccessToken } = useAuth()
+
+  // Auto-mint a guest session once auth is ready but no token exists
+  // (a brand-new visitor opening a shared /game/[id] invite link).
+  useEffect(() => {
+    if (!loading && !getAccessToken()) void guest()
+  }, [loading, guest, getAccessToken])
+
+  if (!getAccessToken()) {
+    return <p className="text-gray-500">Authenticating…</p>
+  }
+
+  return <OnlineGameBoard gameId={gameId} />
+}
+
+function OnlineGameBoard({ gameId }: { gameId: string }) {
   const { state, connected, sendMove, resign, offerDraw, acceptDraw, declineDraw } = useOnlineGame(gameId)
-  const { user, guest, getAccessToken } = useAuth()
   const [selected, setSelected] = useState<string | null>(null)
   const [promotion, setPromotion] = useState<{ from: string; to: string } | null>(null)
-
-  // Auto-mint a guest session if we somehow lack a token (join page fallback).
-  useEffect(() => {
-    if (!getAccessToken() && !user) void guest()
-  }, [getAccessToken, user, guest])
 
   const topIsBlack = state?.youAre === 'w'
   const opponent = state ? (state.youAre === 'w' ? state.black : state.white) : null

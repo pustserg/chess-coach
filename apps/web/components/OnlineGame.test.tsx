@@ -3,18 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import OnlineGame from './OnlineGame'
 
 const useOnlineGame = vi.hoisted(() => vi.fn())
+const useAuth = vi.hoisted(() => vi.fn())
 
 vi.mock('../hooks/useOnlineGame', () => ({
   useOnlineGame,
 }))
 
 vi.mock('../hooks/useAuth', () => ({
-  useAuth: () => ({
-    user: { id: '1', displayName: 'Ann' },
-    loading: false,
-    guest: vi.fn(),
-    getAccessToken: () => 'a',
-  }),
+  useAuth,
 }))
 
 const baseState = {
@@ -46,8 +42,20 @@ function setState(overrides: Record<string, unknown> = {}) {
   })
 }
 
+function setAuth({ user, loading, token }: { user: unknown; loading: boolean; token: string | null }) {
+  useAuth.mockReturnValue({
+    user,
+    loading,
+    guest: vi.fn(),
+    getAccessToken: () => token,
+  })
+}
+
 describe('OnlineGame', () => {
-  beforeEach(() => setState())
+  beforeEach(() => {
+    setState()
+    setAuth({ user: { id: '1', displayName: 'Ann' }, loading: false, token: 'a' })
+  })
 
   it('renders player names and draw/resign controls', () => {
     render(<OnlineGame gameId="g1" />)
@@ -69,5 +77,19 @@ describe('OnlineGame', () => {
     render(<OnlineGame gameId="g1" />)
     expect(screen.getByText('Draw')).toBeInTheDocument()
     expect(screen.getByText('Agreed draw')).toBeInTheDocument()
+  })
+
+  it('shows Authenticating… and does not render the board without a token', () => {
+    setAuth({ user: null, loading: false, token: null })
+    render(<OnlineGame gameId="g1" />)
+    expect(screen.getByText('Authenticating…')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /resign/i })).not.toBeInTheDocument()
+    expect(screen.queryByText('Bob')).not.toBeInTheDocument()
+  })
+
+  it('renders the board once a token is present', () => {
+    setAuth({ user: null, loading: false, token: 'a' })
+    render(<OnlineGame gameId="g1" />)
+    expect(screen.getByText('Bob')).toBeInTheDocument()
   })
 })
