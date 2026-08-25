@@ -38,3 +38,28 @@ class UserOut(BaseModel):
 class AuthResponse(BaseModel):
     user: UserOut
     tokens: TokenPair
+
+
+class GameCreate(BaseModel):
+    side: str = "white"  # "white" | "black"
+    time_control_minutes: int = 10
+
+
+class GameOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    turn: str
+    fen: str
+    white_player_id: uuid.UUID | None
+    black_player_id: uuid.UUID | None
+    time_control_minutes: int
+    white_clock_ms: int
+    black_clock_ms: int
+
+
+class GameSummary(BaseModel):
+    id: uuid.UUID
+    status: str
+    white_player_id: uuid.UUID | None
+    black_player_id: uuid.UUID | None
+    time_control_minutes: int
