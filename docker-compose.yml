@@ -1,4 +1,32 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=chess
+      # Local-dev default; override via POSTGRES_PASSWORD for any shared/remote deployment.
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-chess}
+      - POSTGRES_DB=chess
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chess -d chess"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./services/api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://chess:${POSTGRES_PASSWORD:-chess}@db:5432/chess
+      # No default: must be explicitly provided in the environment.
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - CREATE_TABLES_ON_STARTUP=1
+    depends_on:
+      db:
+        condition: service_healthy
   web:
     build:
       context: .
@@ -6,3 +34,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+
+volumes:
+  pgdata: {}
