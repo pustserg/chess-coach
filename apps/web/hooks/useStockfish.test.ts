@@ -125,4 +125,22 @@ describe('useStockfish', () => {
       vi.useRealTimers()
     }
   })
+
+  it('exposes getEvaluation that delegates to the engine', async () => {
+    const { result } = renderHook(() => useStockfish(true))
+    const worker = FakeWorker.instances[0]
+
+    await act(async () => {
+      worker.onmessage!({ data: 'readyok' })
+    })
+
+    const evalPromise = result.current.getEvaluation('START_FEN', 16)
+    expect(worker.postMessage).toHaveBeenCalledWith('setoption name MultiPV value 3')
+
+    await act(async () => {
+      worker.onmessage!({ data: 'info depth 16 multipv 1 score cp 10 pv e2e4\nbestmove e2e4' })
+    })
+    const evaluation = await evalPromise
+    expect(evaluation.scoreCp).toBe(10)
+  })
 })
