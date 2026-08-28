@@ -33,6 +33,14 @@ function parseInfoLine(line: string, lines: Map<number, EvalLine>): void {
   })
 }
 
+/**
+ * Ceiling for a single engine request. Generous enough that no real
+ * `go depth` (bot move) or depth-16 MultiPV=3 analysis should reach it, but
+ * short enough that a lost worker response cannot wedge the engine for the
+ * rest of the session.
+ */
+export const REQUEST_TIMEOUT_MS = 30000
+
 export function createEngine(worker: UciWorker): Engine {
   let readyResolve: () => void = () => {}
   const ready = new Promise<void>((resolve) => {
@@ -42,6 +50,29 @@ export function createEngine(worker: UciWorker): Engine {
   let bestMoveResolve: ((move: string) => void) | null = null
   let evalResolve: ((evaluation: Evaluation) => void) | null = null
   let evalLines = new Map<number, EvalLine>()
+  let requestTimer: ReturnType<typeof setTimeout> | null = null
+
+  function clearRequestTimer(): void {
+    if (requestTimer !== null) {
+      clearTimeout(requestTimer)
+      requestTimer = null
+    }
+  }
+
+  // Only one request is ever in flight (callers are rejected otherwise), so a
+  // single timer and a blanket reset of both resolvers is enough.
+  function startRequest<T>(begin: (resolve: (value: T) => void) => void): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      requestTimer = setTimeout(() => {
+        requestTimer = null
+        bestMoveResolve = null
+        evalResolve = null
+        evalLines = new Map()
+        reject(new Error('engine request timed out'))
+      }, REQUEST_TIMEOUT_MS)
+      begin(resolve)
+    })
+  }
 
   worker.onmessage = (event) => {
     const data = String(event.data ?? '')
@@ -55,9 +86,11 @@ export function createEngine(worker: UciWorker): Engine {
       } else if (line.startsWith('bestmove')) {
         const move = line.split(/\s+/)[1]
         if (move && bestMoveResolve) {
+          clearRequestTimer()
           bestMoveResolve(move)
           bestMoveResolve = null
         } else if (evalResolve) {
+          clearRequestTimer()
           const sorted = [...evalLines.entries()].sort(([a], [b]) => a - b).map(([, v]) => v)
           const top = sorted[0]
           evalResolve({
@@ -81,7 +114,7 @@ export function createEngine(worker: UciWorker): Engine {
       if (bestMoveResolve || evalResolve) {
         return Promise.reject(new Error('engine request already in flight'))
       }
-      return new Promise<string>((resolve) => {
+      return startRequest<string>((resolve) => {
         bestMoveResolve = resolve
         worker.postMessage('setoption name UCI_LimitStrength value true')
         worker.postMessage(`setoption name Skill Level value ${opts.level}`)
@@ -93,7 +126,7 @@ export function createEngine(worker: UciWorker): Engine {
       if (bestMoveResolve || evalResolve) {
         return Promise.reject(new Error('engine request already in flight'))
       }
-      const result = new Promise<Evaluation>((resolve) => {
+      const result = startRequest<Evaluation>((resolve) => {
         evalResolve = resolve
         evalLines = new Map()
         worker.postMessage('setoption name MultiPV value 3')
@@ -109,6 +142,7 @@ export function createEngine(worker: UciWorker): Engine {
       worker.postMessage('ucinewgame')
     },
     terminate() {
+      clearRequestTimer()
       worker.terminate()
     },
   }

@@ -57,11 +57,11 @@ export function useStockfish(enabled: boolean): {
     }
   }, [enabled])
 
-  const getBestMove = useCallback((fen: string, opts: EngineOptions) => {
-    const engine = engineRef.current
-    if (error) return Promise.reject(new Error('engine unavailable'))
-    if (!engine) return Promise.reject(new Error('engine not initialized'))
-    const run = () => engine.getBestMove(fen, opts)
+  // The engine is a single worker that rejects overlapping requests, so every
+  // request — bot move or coach evaluation — goes through one FIFO queue.
+  // `run` is chained on both fulfillment and rejection of the item ahead of it
+  // so a failed request never stalls the ones behind it.
+  const enqueue = useCallback(<T,>(run: () => Promise<T>): Promise<T> => {
     pendingRef.current += 1
     const result = pendingRef.current === 1
       ? run()
@@ -71,14 +71,21 @@ export function useStockfish(enabled: boolean): {
       () => { pendingRef.current -= 1 },
     )
     return result
-  }, [error])
+  }, [])
+
+  const getBestMove = useCallback((fen: string, opts: EngineOptions) => {
+    const engine = engineRef.current
+    if (error) return Promise.reject(new Error('engine unavailable'))
+    if (!engine) return Promise.reject(new Error('engine not initialized'))
+    return enqueue(() => engine.getBestMove(fen, opts))
+  }, [error, enqueue])
 
   const getEvaluation = useCallback((fen: string, depth: number) => {
     const engine = engineRef.current
     if (error) return Promise.reject(new Error('engine unavailable'))
     if (!engine) return Promise.reject(new Error('engine not initialized'))
-    return engine.getEvaluation(fen, depth)
-  }, [error])
+    return enqueue(() => engine.getEvaluation(fen, depth))
+  }, [error, enqueue])
 
   const newGame = useCallback(() => {
     engineRef.current?.newGame()

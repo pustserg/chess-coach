@@ -143,4 +143,58 @@ describe('useStockfish', () => {
     const evaluation = await evalPromise
     expect(evaluation.scoreCp).toBe(10)
   })
+
+  it('queues a getBestMove behind an in-flight getEvaluation instead of rejecting it', async () => {
+    const { result } = renderHook(() => useStockfish(true))
+    const worker = FakeWorker.instances[0]
+
+    await act(async () => {
+      worker.onmessage!({ data: 'readyok' })
+    })
+
+    // The coach starts a deep analysis, then the bot's timer fires: the move
+    // request must wait its turn, not be dropped.
+    const evalPromise = result.current.getEvaluation('FEN1', 16)
+    const movePromise = result.current.getBestMove('FEN2', { level: 1, depth: 3 })
+
+    expect(worker.postMessage).toHaveBeenCalledWith('go depth 16')
+    expect(worker.postMessage).not.toHaveBeenCalledWith('go depth 3')
+
+    await act(async () => {
+      worker.onmessage!({ data: 'info depth 16 multipv 1 score cp 10 pv e2e4\nbestmove e2e4' })
+    })
+    await expect(evalPromise).resolves.toMatchObject({ scoreCp: 10 })
+    expect(worker.postMessage).toHaveBeenCalledWith('go depth 3')
+
+    await act(async () => {
+      worker.onmessage!({ data: 'bestmove d2d4' })
+    })
+    await expect(movePromise).resolves.toBe('d2d4')
+  })
+
+  it('queues a getEvaluation behind an in-flight getBestMove instead of rejecting it', async () => {
+    const { result } = renderHook(() => useStockfish(true))
+    const worker = FakeWorker.instances[0]
+
+    await act(async () => {
+      worker.onmessage!({ data: 'readyok' })
+    })
+
+    const movePromise = result.current.getBestMove('FEN1', { level: 1, depth: 2 })
+    const evalPromise = result.current.getEvaluation('FEN2', 16)
+
+    expect(worker.postMessage).toHaveBeenCalledWith('go depth 2')
+    expect(worker.postMessage).not.toHaveBeenCalledWith('setoption name MultiPV value 3')
+
+    await act(async () => {
+      worker.onmessage!({ data: 'bestmove e2e4' })
+    })
+    await expect(movePromise).resolves.toBe('e2e4')
+    expect(worker.postMessage).toHaveBeenCalledWith('setoption name MultiPV value 3')
+
+    await act(async () => {
+      worker.onmessage!({ data: 'info depth 16 multipv 1 score cp 25 pv d2d4\nbestmove d2d4' })
+    })
+    await expect(evalPromise).resolves.toMatchObject({ scoreCp: 25 })
+  })
 })

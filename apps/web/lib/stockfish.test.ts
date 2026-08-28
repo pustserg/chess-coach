@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createEngine } from './stockfish'
+import { REQUEST_TIMEOUT_MS, createEngine } from './stockfish'
 import type { UciWorker } from './stockfish'
 import type { Evaluation } from './types'
 
@@ -50,6 +50,70 @@ describe('createEngine', () => {
 
     worker.onmessage!({ data: 'bestmove e2e4' })
     await expect(first).resolves.toBe('e2e4')
+  })
+
+  it('times out a stuck request and stays usable afterwards', async () => {
+    vi.useFakeTimers()
+    try {
+      const worker = makeWorker()
+      const engine = createEngine(worker)
+      const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+
+      // A worker that never answers must not wedge the engine forever.
+      const stuck = engine.getBestMove(fen, { level: 10, depth: 12 })
+      const rejected = expect(stuck).rejects.toThrow('engine request timed out')
+      await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS)
+      await rejected
+
+      const second = engine.getBestMove(fen, { level: 10, depth: 12 })
+      worker.onmessage!({ data: 'bestmove e2e4' })
+      await expect(second).resolves.toBe('e2e4')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('times out a stuck getEvaluation and stays usable afterwards', async () => {
+    vi.useFakeTimers()
+    try {
+      const worker = makeWorker()
+      const engine = createEngine(worker)
+      const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+
+      const stuck = engine.getEvaluation(fen, 16)
+      const rejected = expect(stuck).rejects.toThrow('engine request timed out')
+      await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS)
+      await rejected
+
+      const evalPromise = engine.getEvaluation(fen, 16)
+      worker.onmessage!({ data: 'info depth 16 multipv 1 score cp 10 pv e2e4\nbestmove e2e4' })
+      await expect(evalPromise).resolves.toMatchObject({ scoreCp: 10 })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('clears the request timeout when a request resolves normally', async () => {
+    vi.useFakeTimers()
+    try {
+      const worker = makeWorker()
+      const engine = createEngine(worker)
+      const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+
+      const movePromise = engine.getBestMove(fen, { level: 10, depth: 12 })
+      expect(vi.getTimerCount()).toBe(1)
+      worker.onmessage!({ data: 'bestmove e2e4' })
+      await expect(movePromise).resolves.toBe('e2e4')
+      expect(vi.getTimerCount()).toBe(0)
+
+      const evalPromise = engine.getEvaluation(fen, 16)
+      expect(vi.getTimerCount()).toBe(1)
+      worker.onmessage!({ data: 'info depth 16 multipv 1 score cp 10 pv e2e4\nbestmove e2e4' })
+      await evalPromise
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('sends stop then ucinewgame on newGame', () => {
