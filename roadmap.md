@@ -84,13 +84,13 @@ Enable online play by allowing users to create games, invite friends via shareab
 Provide an interactive AI Chess Coach capable of explaining positional dynamics, tactical mistakes, and strategic plans in natural language upon request.
 
 ### Requirements & Task Checklist
-- [ ] **UI Integration:**
+- [x] **UI Integration:**
   - "Ask Coach" action button on the game interface.
   - Responsive drawer (mobile) or side panel (desktop) for AI chat interactions.
-- [ ] **Context Pipeline:**
+- [x] **Context Pipeline:**
   - Capture current board state: FEN string, move history, current player, user's target ELO (~2000 ELO focus).
   - Run Stockfish top-line evaluation: Evaluation score (centipawns/mate), Principal Variation (PV) top 3 moves.
-- [ ] **LLM Orchestration & Prompting:**
+- [x] **LLM Orchestration & Prompting:**
   - API endpoint forwarding structured context to the fine-tuned coach model via Ollama (base fallback: `qwen2.5:7b-instruct`).
   - System prompt enforcing pedagogical tone suitable for advanced players (focus on pawn structures, weak squares, outposts, and piece activity rather than generic advice).
 
