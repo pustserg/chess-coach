@@ -115,7 +115,7 @@ No auth dependency, no DB session. `prompts.py` builds one system message from `
 - **Ollama unreachable / model not pulled:** the backend call fails — return a `502` with a short error body; the drawer shows an inline "Coach is unavailable" message instead of the chat.
 - **Stream interrupted mid-response:** the client keeps whatever tokens arrived and appends an inline "(response interrupted)" note; no retry loop.
 - **User sends a new message while a response is still streaming:** the input is disabled until the current stream completes (one in-flight request at a time).
-- **Position changes while the drawer is open** (bot replies): the cached evaluation is invalidated and re-run next time the drawer needs it; existing chat history is left as-is (it's about the position at the time it was asked).
+- **Position changes while the drawer is open** (the player's own move, an undo, a new game — anything that changes `fen`): the drawer closes immediately, transcript included. It cannot instead stay open and silently re-run its evaluation for the new position: the drawer has no backdrop, so the board stays interactive while it's open, and re-running a depth-16 evaluation for a bot-to-move position would compete with the bot's own engine request on the single shared Stockfish worker. Reopening "Ask Coach" starts a fresh conversation for whatever position is current when it's clicked.
 
 ## Testing Strategy
 
