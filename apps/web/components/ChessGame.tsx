@@ -33,6 +33,8 @@ import PromotionModal from './PromotionModal'
 import GameOverModal from './GameOverModal'
 import ModeSelector from './ModeSelector'
 import DifficultyControl from './DifficultyControl'
+import CoachDrawer from './CoachDrawer'
+import { streamCoachReply } from '../lib/coach'
 
 const PRESETS = [3, 5, 10] as const
 type FlipMode = 'auto' | 'manual' | 'off'
@@ -74,13 +76,14 @@ export default function ChessGame() {
   const [flipMode, setFlipMode] = useState<FlipMode>('auto')
   const [manualOrientation, setManualOrientation] = useState<'white' | 'black'>('white')
   const [resolvedSide, setResolvedSide] = useState<PlayerSide>('white')
+  const [coachOpen, setCoachOpen] = useState(false)
 
   const vsComputer = config.mode === 'vs-computer'
   const humanColor: PlayerColor = sideToColor(resolvedSide)
   const botColor: PlayerColor = resolvedSide === 'white' ? 'b' : 'w'
   const engineOptions = resolveEngineOptions(config)
 
-  const { ready, error, getBestMove, newGame: engineNewGame } = useStockfish(vsComputer)
+  const { ready, error, getBestMove, getEvaluation, newGame: engineNewGame } = useStockfish(vsComputer)
   const handleBotMove = useCallback((uci: string) => dispatch({ type: 'bot-move', uci }), [])
 
   const { thinking } = useBotOpponent({
@@ -288,6 +291,16 @@ export default function ChessGame() {
           >
             Undo
           </button>
+          {vsComputer && (
+            <button
+              type="button"
+              onClick={() => setCoachOpen(true)}
+              disabled={state.turn !== humanColor || thinking}
+              className="rounded-lg bg-gray-100 px-3 py-1 disabled:opacity-40"
+            >
+              Ask Coach
+            </button>
+          )}
           <button type="button" onClick={newGame} className="rounded-lg bg-blue-600 px-3 py-1 text-white">New Game</button>
         </div>
       </div>
@@ -300,6 +313,17 @@ export default function ChessGame() {
 
       {TERMINAL_STATUSES.includes(state.status) && (
         <GameOverModal status={state.status} winner={state.winner} onNewGame={newGame} />
+      )}
+
+      {coachOpen && (
+        <CoachDrawer
+          fen={state.fen}
+          moveHistorySan={state.history}
+          sideToMove={state.turn}
+          getEvaluation={getEvaluation}
+          streamReply={streamCoachReply}
+          onClose={() => setCoachOpen(false)}
+        />
       )}
     </div>
   )
