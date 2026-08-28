@@ -37,11 +37,12 @@ export default function CoachDrawer({
   const evalCacheRef = useRef<Map<string, Evaluation>>(new Map())
 
   useEffect(() => {
-    setError(null)
     if (evalCacheRef.current.has(fen)) {
+      setError(null)
       setEvalReady(true)
       return
     }
+    setError(null)
     setEvalReady(false)
     let cancelled = false
     getEvaluation(fen, EVAL_DEPTH)
