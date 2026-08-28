@@ -1,6 +1,7 @@
 import json
 
 import httpx
+import httpx as httpx_module  # for the ConnectError used below
 import pytest
 
 from app.coach.ollama_client import stream_chat
@@ -68,3 +69,36 @@ def test_prompt_formats_centipawn_score_in_pawns():
 def test_prompt_formats_mate_score():
     prompt = build_system_prompt(_request(evaluation=EvaluationIn(score_mate=3, lines=[])))
     assert "Mate in 3 for White" in prompt
+
+
+COACH_PAYLOAD = {
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "move_history_san": [],
+    "side_to_move": "w",
+    "evaluation": {"score_cp": 20, "score_mate": None, "lines": [["Nf3", "Nf6"]]},
+    "target_elo": 2000,
+    "messages": [{"role": "user", "content": "What's the plan here?"}],
+}
+
+
+def test_coach_message_streams_tokens(client, monkeypatch):
+    async def fake_stream_chat(messages):
+        assert messages[0]["role"] == "system"
+        assert messages[-1] == {"role": "user", "content": "What's the plan here?"}
+        yield "Hel"
+        yield "lo"
+
+    monkeypatch.setattr("app.coach.routes.ollama_client.stream_chat", fake_stream_chat)
+    resp = client.post("/coach/message", json=COACH_PAYLOAD)
+    assert resp.status_code == 200
+    assert resp.text == "Hello"
+
+
+def test_coach_message_returns_502_when_ollama_unreachable(client, monkeypatch):
+    async def fake_stream_chat(messages):
+        raise httpx_module.ConnectError("refused")
+        yield  # pragma: no cover - unreachable, keeps this an async generator
+
+    monkeypatch.setattr("app.coach.routes.ollama_client.stream_chat", fake_stream_chat)
+    resp = client.post("/coach/message", json=COACH_PAYLOAD)
+    assert resp.status_code == 502
