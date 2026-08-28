@@ -71,6 +71,23 @@ def test_prompt_formats_mate_score():
     assert "Mate in 3 for White" in prompt
 
 
+def test_prompt_forbids_inventing_an_evaluation_when_none_is_available():
+    prompt = build_system_prompt(
+        _request(evaluation=EvaluationIn(score_cp=None, score_mate=None, lines=[]))
+    )
+    assert "NO ENGINE DATA IS AVAILABLE FOR THIS POSITION" in prompt
+    assert "Do not fabricate an evaluation, score, or engine line" in prompt
+    # The "trust the evaluation you were given" instruction must not appear when
+    # there is no evaluation to trust.
+    assert "do not re-evaluate the position yourself" not in prompt
+
+
+def test_prompt_keeps_ground_truth_instruction_when_an_evaluation_exists():
+    prompt = build_system_prompt(_request())
+    assert "do not re-evaluate the position yourself" in prompt
+    assert "NO ENGINE DATA" not in prompt
+
+
 COACH_PAYLOAD = {
     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
     "move_history_san": [],
