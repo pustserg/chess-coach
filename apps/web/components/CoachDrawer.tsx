@@ -7,6 +7,7 @@ import type { Evaluation, PlayerColor } from '../lib/types'
 
 const TARGET_ELO = 2000
 const EVAL_DEPTH = 16
+const INTERRUPTED_NOTE = ' (response interrupted)'
 
 export interface CoachDrawerProps {
   fen: string
@@ -82,17 +83,27 @@ export default function CoachDrawer({
       },
     }
 
+    let streamed = ''
+    const appendToReply = (text: string) => {
+      setMessages((prev) => {
+        const updated = [...prev]
+        const last = updated[updated.length - 1]
+        updated[updated.length - 1] = { ...last, content: last.content + text }
+        return updated
+      })
+    }
+
     try {
       await streamReply(context, nextMessages, (token) => {
-        setMessages((prev) => {
-          const updated = [...prev]
-          const last = updated[updated.length - 1]
-          updated[updated.length - 1] = { ...last, content: last.content + token }
-          return updated
-        })
+        streamed += token
+        appendToReply(token)
       })
     } catch {
-      setError('Coach is unavailable')
+      // A failure mid-stream keeps the tokens already received and marks that
+      // same message as truncated; only a failure with nothing to show falls
+      // back to the unavailable banner.
+      if (streamed) appendToReply(INTERRUPTED_NOTE)
+      else setError('Coach is unavailable')
     } finally {
       setStreaming(false)
     }

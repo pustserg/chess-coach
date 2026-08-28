@@ -55,6 +55,54 @@ describe('CoachDrawer', () => {
     )
   })
 
+  it('marks a partial reply as interrupted instead of showing the unavailable banner', async () => {
+    const getEvaluation = vi.fn().mockResolvedValue({ scoreCp: 20, scoreMate: null, lines: [] })
+    const streamReply = vi.fn().mockImplementation(async (_ctx, _messages, onToken) => {
+      onToken('Play ')
+      onToken('d4')
+      throw new Error('stream died')
+    })
+    render(
+      <CoachDrawer
+        fen={FEN}
+        moveHistorySan={[]}
+        sideToMove="w"
+        getEvaluation={getEvaluation}
+        streamReply={streamReply}
+        onClose={vi.fn()}
+      />,
+    )
+    const input = await screen.findByLabelText('Ask the coach')
+    await waitFor(() => expect(input).toBeEnabled())
+    await userEvent.type(input, 'Whats the plan?')
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    expect(await screen.findByText('Play d4 (response interrupted)')).toBeInTheDocument()
+    expect(screen.queryByText('Coach is unavailable')).not.toBeInTheDocument()
+  })
+
+  it('shows the unavailable banner when the stream fails before any token', async () => {
+    const getEvaluation = vi.fn().mockResolvedValue({ scoreCp: 20, scoreMate: null, lines: [] })
+    const streamReply = vi.fn().mockRejectedValue(new Error('stream died'))
+    render(
+      <CoachDrawer
+        fen={FEN}
+        moveHistorySan={[]}
+        sideToMove="w"
+        getEvaluation={getEvaluation}
+        streamReply={streamReply}
+        onClose={vi.fn()}
+      />,
+    )
+    const input = await screen.findByLabelText('Ask the coach')
+    await waitFor(() => expect(input).toBeEnabled())
+    await userEvent.type(input, 'Whats the plan?')
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    expect(await screen.findByText('Coach is unavailable')).toBeInTheDocument()
+    expect(screen.queryByText(/response interrupted/)).not.toBeInTheDocument()
+  })
+
   it('shows an unavailable message when the evaluation fails', async () => {
     const getEvaluation = vi.fn().mockRejectedValue(new Error('boom'))
     render(
