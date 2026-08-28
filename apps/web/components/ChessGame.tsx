@@ -76,7 +76,7 @@ export default function ChessGame() {
   const [flipMode, setFlipMode] = useState<FlipMode>('auto')
   const [manualOrientation, setManualOrientation] = useState<'white' | 'black'>('white')
   const [resolvedSide, setResolvedSide] = useState<PlayerSide>('white')
-  const [coachOpen, setCoachOpen] = useState(false)
+  const [coachFen, setCoachFen] = useState<string | null>(null)
 
   const vsComputer = config.mode === 'vs-computer'
   const humanColor: PlayerColor = sideToColor(resolvedSide)
@@ -129,6 +129,21 @@ export default function ChessGame() {
     : 'white'
 
   const humanMayAct = !vsComputer || state.turn === humanColor
+
+  // The coach is scoped to the exact position it was opened for, so the moment
+  // the position changes — the player's own move, an undo, a new game — the
+  // drawer goes away. Without that, an open drawer fires a fresh depth-16
+  // evaluation for the bot-to-move position and competes with the bot's own
+  // request on the single shared engine worker.
+  //
+  // Derived during render rather than reset from an effect: setState in an
+  // effect is a lint error here, and an effect would also be too late — child
+  // effects run before parent effects, so the drawer would still get one
+  // evaluation in for the bot's position before being closed.
+  const coachVisible = coachFen === state.fen
+    && vsComputer
+    && state.turn === humanColor
+    && !TERMINAL_STATUSES.includes(state.status)
 
   const handleSquareClick = (square: string) => {
     if (TERMINAL_STATUSES.includes(state.status) || state.pendingPromotion) return
@@ -294,8 +309,8 @@ export default function ChessGame() {
           {vsComputer && (
             <button
               type="button"
-              onClick={() => setCoachOpen(true)}
-              disabled={state.turn !== humanColor || thinking}
+              onClick={() => setCoachFen(state.fen)}
+              disabled={state.turn !== humanColor || thinking || TERMINAL_STATUSES.includes(state.status)}
               className="rounded-lg bg-gray-100 px-3 py-1 disabled:opacity-40"
             >
               Ask Coach
@@ -315,14 +330,14 @@ export default function ChessGame() {
         <GameOverModal status={state.status} winner={state.winner} onNewGame={newGame} />
       )}
 
-      {coachOpen && (
+      {coachVisible && (
         <CoachDrawer
           fen={state.fen}
           moveHistorySan={state.history}
           sideToMove={state.turn}
           getEvaluation={getEvaluation}
           streamReply={streamCoachReply}
-          onClose={() => setCoachOpen(false)}
+          onClose={() => setCoachFen(null)}
         />
       )}
     </div>
