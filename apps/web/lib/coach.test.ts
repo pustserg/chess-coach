@@ -29,6 +29,7 @@ describe('streamCoachReply', () => {
 
     await streamCoachReply(CONTEXT, messages, (token) => tokens.push(token))
 
+    expect(tokens).toEqual(['Hel', 'lo'])
     expect(tokens.join('')).toBe('Hello')
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('http://localhost:8000/coach/message')
