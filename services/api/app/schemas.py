@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -72,14 +73,14 @@ class EvaluationIn(BaseModel):
 
 
 class CoachMessageIn(BaseModel):
-    role: str  # "user" | "assistant"
+    role: Literal["user", "assistant"]
     content: str
 
 
 class CoachRequest(BaseModel):
     fen: str
     move_history_san: list[str] = []
-    side_to_move: str  # "w" | "b"
+    side_to_move: Literal["w", "b"]
     evaluation: EvaluationIn
     target_elo: int = 2000
     messages: list[CoachMessageIn]

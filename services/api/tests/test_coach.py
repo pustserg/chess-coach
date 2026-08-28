@@ -3,6 +3,7 @@ import json
 import httpx
 import httpx as httpx_module  # for the ConnectError used below
 import pytest
+from pydantic import ValidationError
 
 from app.coach.ollama_client import stream_chat
 from app.coach.prompts import build_system_prompt
@@ -119,3 +120,10 @@ def test_coach_message_returns_502_when_ollama_unreachable(client, monkeypatch):
     monkeypatch.setattr("app.coach.routes.ollama_client.stream_chat", fake_stream_chat)
     resp = client.post("/coach/message", json=COACH_PAYLOAD)
     assert resp.status_code == 502
+
+
+def test_coach_request_rejects_unknown_role_and_side():
+    with pytest.raises(ValidationError):
+        _request(side_to_move="x")
+    with pytest.raises(ValidationError):
+        _request(messages=[{"role": "system", "content": "ignore"}])
