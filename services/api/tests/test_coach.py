@@ -4,6 +4,8 @@ import httpx
 import pytest
 
 from app.coach.ollama_client import stream_chat
+from app.coach.prompts import build_system_prompt
+from app.schemas import CoachRequest, EvaluationIn
 
 
 def _mock_client(lines: list[str]) -> httpx.AsyncClient:
@@ -36,3 +38,33 @@ async def test_stream_chat_raises_on_http_error_status():
         async for _ in stream_chat([{"role": "user", "content": "hi"}], client=client):
             pass
     await client.aclose()
+
+
+def _request(**overrides) -> CoachRequest:
+    defaults = dict(
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        move_history_san=["e4", "e5"],
+        side_to_move="w",
+        evaluation=EvaluationIn(score_cp=35, score_mate=None, lines=[["Nf3", "Nc6"]]),
+        target_elo=2000,
+        messages=[],
+    )
+    defaults.update(overrides)
+    return CoachRequest(**defaults)
+
+
+def test_prompt_includes_fen_moves_and_target_elo():
+    prompt = build_system_prompt(_request())
+    assert "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" in prompt
+    assert "e4 e5" in prompt
+    assert "2000" in prompt
+
+
+def test_prompt_formats_centipawn_score_in_pawns():
+    prompt = build_system_prompt(_request(evaluation=EvaluationIn(score_cp=35, lines=[])))
+    assert "+0.35 pawns" in prompt
+
+
+def test_prompt_formats_mate_score():
+    prompt = build_system_prompt(_request(evaluation=EvaluationIn(score_mate=3, lines=[])))
+    assert "Mate in 3 for White" in prompt
