@@ -14,6 +14,13 @@ services:
       timeout: 5s
       retries: 5
 
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
   api:
     build:
       context: ./services/api
@@ -24,6 +31,8 @@ services:
       # No default: must be explicitly provided in the environment.
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - CREATE_TABLES_ON_STARTUP=1
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=qwen2.5:7b-instruct
     depends_on:
       db:
         condition: service_healthy
@@ -38,3 +47,4 @@ services:
 
 volumes:
   pgdata: {}
+  ollama-data: {}
