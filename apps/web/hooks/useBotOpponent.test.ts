@@ -53,6 +53,45 @@ describe('useBotOpponent', () => {
     expect(args.getBestMove).not.toHaveBeenCalled()
   })
 
+  it('retries once when the engine request is rejected', async () => {
+    const getBestMove = vi.fn()
+      .mockRejectedValueOnce(new Error('engine request already in flight'))
+      .mockResolvedValue('e2e4')
+    const args = makeArgs({ getBestMove })
+    renderHook(() => useBotOpponent(args))
+
+    await act(async () => { vi.advanceTimersByTime(800) })
+    expect(getBestMove).toHaveBeenCalledTimes(1)
+    expect(args.onMove).not.toHaveBeenCalled()
+
+    await act(async () => { vi.advanceTimersByTime(500) })
+    expect(getBestMove).toHaveBeenCalledTimes(2)
+    expect(args.onMove).toHaveBeenCalledWith('e2e4')
+  })
+
+  it('gives up after one retry rather than looping', async () => {
+    const getBestMove = vi.fn().mockRejectedValue(new Error('engine unavailable'))
+    const args = makeArgs({ getBestMove })
+    renderHook(() => useBotOpponent(args))
+
+    await act(async () => { vi.advanceTimersByTime(800) })
+    await act(async () => { vi.advanceTimersByTime(5000) })
+    expect(getBestMove).toHaveBeenCalledTimes(2)
+    expect(args.onMove).not.toHaveBeenCalled()
+  })
+
+  it('does not retry after the effect is torn down', async () => {
+    const getBestMove = vi.fn().mockRejectedValue(new Error('engine unavailable'))
+    const args = makeArgs({ getBestMove })
+    const { unmount } = renderHook(() => useBotOpponent(args))
+
+    await act(async () => { vi.advanceTimersByTime(800) })
+    expect(getBestMove).toHaveBeenCalledTimes(1)
+    unmount()
+    await act(async () => { vi.advanceTimersByTime(5000) })
+    expect(getBestMove).toHaveBeenCalledTimes(1)
+  })
+
   it('reports thinking only on the bot turn', () => {
     const args = makeArgs()
     const { result, rerender } = renderHook((a) => useBotOpponent(a), { initialProps: args })
