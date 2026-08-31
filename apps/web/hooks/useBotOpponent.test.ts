@@ -13,7 +13,7 @@ function makeArgs(overrides: Record<string, unknown> = {}) {
     pendingPromotion: false,
     engineOptions: { level: 10, depth: 12 },
     getBestMove: vi.fn().mockResolvedValue('e2e4'),
-    onMove: vi.fn(),
+    onMove: vi.fn().mockReturnValue(true),
     ...overrides,
   }
 }
@@ -67,6 +67,27 @@ describe('useBotOpponent', () => {
     await act(async () => { vi.advanceTimersByTime(500) })
     expect(getBestMove).toHaveBeenCalledTimes(2)
     expect(args.onMove).toHaveBeenCalledWith('e2e4')
+  })
+
+  it('retries once when the move resolves but onMove reports it did not apply', async () => {
+    // Simulates a stale worker reply resolving a later request with a move
+    // that's illegal for the current position — onMove (via applyBotMove)
+    // reports false instead of the promise rejecting.
+    const onMove = vi.fn()
+      .mockReturnValueOnce(false)
+      .mockReturnValue(true)
+    const args = makeArgs({ onMove })
+    renderHook(() => useBotOpponent(args))
+
+    await act(async () => { vi.advanceTimersByTime(800) })
+    expect(args.getBestMove).toHaveBeenCalledTimes(1)
+    expect(onMove).toHaveBeenCalledWith('e2e4')
+    expect(onMove).toHaveBeenCalledTimes(1)
+
+    await act(async () => { vi.advanceTimersByTime(500) })
+    expect(args.getBestMove).toHaveBeenCalledTimes(2)
+    expect(onMove).toHaveBeenCalledTimes(2)
+    expect(onMove).toHaveBeenLastCalledWith('e2e4')
   })
 
   it('gives up after one retry rather than looping', async () => {

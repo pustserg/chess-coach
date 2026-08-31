@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useReducer, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { Chessboard } from 'react-chessboard'
 import { Chess } from 'chess.js'
 import {
@@ -72,6 +72,17 @@ export default function ChessGame() {
   const [config, setConfig] = useState<GameConfig>(DEFAULT_CONFIG)
   const [timeControl, setTimeControl] = useState<TimeControl>({ minutes: 10 })
   const [state, dispatch] = useReducer(reducer, timeControl, createInitialState)
+  // Mirrors `state` for handleBotMove below, which reads it from an async
+  // callback (an engine promise resolving well after this render and its
+  // effects have committed) rather than during render — so, unlike
+  // coachVisible below, there's no child-effect-before-parent-effect race to
+  // worry about here, and syncing in an effect keeps `stateRef.current`
+  // write out of render (accessing/writing a ref during render is a lint
+  // error: react-hooks/refs).
+  const stateRef = useRef(state)
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
   const [selected, setSelected] = useState<string | null>(null)
   const [flipMode, setFlipMode] = useState<FlipMode>('auto')
   const [manualOrientation, setManualOrientation] = useState<'white' | 'black'>('white')
@@ -84,7 +95,22 @@ export default function ChessGame() {
   const engineOptions = resolveEngineOptions(config)
 
   const { ready, error, getBestMove, getEvaluation, newGame: engineNewGame } = useStockfish(vsComputer)
-  const handleBotMove = useCallback((uci: string) => dispatch({ type: 'bot-move', uci }), [])
+
+  // A stale worker reply (the UCI protocol carries no request id) can resolve
+  // a later getBestMove call with a move for a position that's no longer
+  // current. applyBotMove safely no-ops on an illegal move, returning the
+  // same state reference — that's the signal used here to report back to
+  // useBotOpponent so it can retry instead of silently dropping the bot's
+  // turn. Reads stateRef rather than closing over `state` so this callback
+  // stays referentially stable (it's a dependency of useBotOpponent's effect,
+  // and a new identity every render — e.g. on every clock tick — would make
+  // that effect re-run far more than it should).
+  const handleBotMove = useCallback((uci: string) => {
+    const next = applyBotMove(stateRef.current, uci)
+    if (next === stateRef.current) return false
+    dispatch({ type: 'bot-move', uci })
+    return true
+  }, [])
 
   const { thinking } = useBotOpponent({
     enabled: vsComputer && !error,

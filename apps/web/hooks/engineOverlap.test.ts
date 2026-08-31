@@ -26,7 +26,7 @@ const ENGINE_OPTIONS = { level: 10, depth: 12 }
 const BOT_TO_MOVE_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1'
 const EVAL_REPLY = 'info depth 16 multipv 1 score cp 10 pv e7e5\nbestmove e7e5'
 
-function useCoachAndBot(onMove: (uci: string) => void) {
+function useCoachAndBot(onMove: (uci: string) => boolean) {
   const { getBestMove, getEvaluation } = useStockfish(true)
   const { thinking } = useBotOpponent({
     enabled: true,
@@ -51,7 +51,7 @@ describe('coach evaluation / bot move overlap on the shared engine', () => {
   afterEach(() => vi.useRealTimers())
 
   it('still plays the bot move when an evaluation is in flight when the bot timer fires', async () => {
-    const onMove = vi.fn()
+    const onMove = vi.fn().mockReturnValue(true)
     const { result } = renderHook(() => useCoachAndBot(onMove))
     const worker = FakeWorker.instances[0]
 
@@ -88,7 +88,7 @@ describe('coach evaluation / bot move overlap on the shared engine', () => {
   })
 
   it('resolves both requests when the bot request is queued first', async () => {
-    const onMove = vi.fn()
+    const onMove = vi.fn().mockReturnValue(true)
     const { result } = renderHook(() => useCoachAndBot(onMove))
     const worker = FakeWorker.instances[0]
 
