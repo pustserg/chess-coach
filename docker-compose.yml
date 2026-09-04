@@ -20,6 +20,23 @@ services:
       - "11434:11434"
     volumes:
       - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: pulls OLLAMA_MODEL into the ollama-data volume if it isn't already
+  # there. Pulling is idempotent (skips already-downloaded layers), so this is
+  # safe and cheap to rerun on every `docker compose up`.
+  ollama-pull:
+    image: ollama/ollama:latest
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["sh", "-c", "ollama pull \"${OLLAMA_MODEL:-qwen2.5:7b-instruct}\""]
+    depends_on:
+      ollama:
+        condition: service_healthy
 
   api:
     build:
