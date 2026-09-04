@@ -26,6 +26,11 @@ export type SideChoice = 'white' | 'black' | 'random'
 export type PlayerSide = 'white' | 'black'
 export type DifficultyPreset = 'beginner' | 'casual' | 'intermediate' | 'advanced' | 'expert'
 export interface EngineOptions { level: number; depth: number }
+export interface Evaluation {
+  scoreCp: number | null
+  scoreMate: number | null
+  lines: string[][]
+}
 export interface GameConfig {
   mode: GameMode
   side: SideChoice

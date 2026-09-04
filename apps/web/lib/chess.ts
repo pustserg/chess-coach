@@ -141,3 +141,21 @@ export function getCheckSquare(fen: string): string | null {
   }
   return null
 }
+
+export function uciLineToSan(fen: string, uciMoves: string[]): string[] {
+  const chess = new Chess(fen)
+  const sans: string[] = []
+  for (const uci of uciMoves) {
+    const from = uci.slice(0, 2)
+    const to = uci.slice(2, 4)
+    const promotion = uci.length >= 5 ? (uci[4] as PromotionPiece) : undefined
+    try {
+      const move = promotion ? chess.move({ from, to, promotion }) : chess.move({ from, to })
+      if (!move) break
+      sans.push(move.san)
+    } catch {
+      break
+    }
+  }
+  return sans
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useReducer, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { Chessboard } from 'react-chessboard'
 import { Chess } from 'chess.js'
 import {
@@ -33,6 +33,8 @@ import PromotionModal from './PromotionModal'
 import GameOverModal from './GameOverModal'
 import ModeSelector from './ModeSelector'
 import DifficultyControl from './DifficultyControl'
+import CoachDrawer from './CoachDrawer'
+import { streamCoachReply } from '../lib/coach'
 
 const PRESETS = [3, 5, 10] as const
 type FlipMode = 'auto' | 'manual' | 'off'
@@ -70,18 +72,45 @@ export default function ChessGame() {
   const [config, setConfig] = useState<GameConfig>(DEFAULT_CONFIG)
   const [timeControl, setTimeControl] = useState<TimeControl>({ minutes: 10 })
   const [state, dispatch] = useReducer(reducer, timeControl, createInitialState)
+  // Mirrors `state` for handleBotMove below, which reads it from an async
+  // callback (an engine promise resolving well after this render and its
+  // effects have committed) rather than during render — so, unlike
+  // coachVisible below, there's no child-effect-before-parent-effect race to
+  // worry about here, and syncing in an effect keeps `stateRef.current`
+  // write out of render (accessing/writing a ref during render is a lint
+  // error: react-hooks/refs).
+  const stateRef = useRef(state)
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
   const [selected, setSelected] = useState<string | null>(null)
   const [flipMode, setFlipMode] = useState<FlipMode>('auto')
   const [manualOrientation, setManualOrientation] = useState<'white' | 'black'>('white')
   const [resolvedSide, setResolvedSide] = useState<PlayerSide>('white')
+  const [coachFen, setCoachFen] = useState<string | null>(null)
 
   const vsComputer = config.mode === 'vs-computer'
   const humanColor: PlayerColor = sideToColor(resolvedSide)
   const botColor: PlayerColor = resolvedSide === 'white' ? 'b' : 'w'
   const engineOptions = resolveEngineOptions(config)
 
-  const { ready, error, getBestMove, newGame: engineNewGame } = useStockfish(vsComputer)
-  const handleBotMove = useCallback((uci: string) => dispatch({ type: 'bot-move', uci }), [])
+  const { ready, error, getBestMove, getEvaluation, newGame: engineNewGame } = useStockfish(vsComputer)
+
+  // A stale worker reply (the UCI protocol carries no request id) can resolve
+  // a later getBestMove call with a move for a position that's no longer
+  // current. applyBotMove safely no-ops on an illegal move, returning the
+  // same state reference — that's the signal used here to report back to
+  // useBotOpponent so it can retry instead of silently dropping the bot's
+  // turn. Reads stateRef rather than closing over `state` so this callback
+  // stays referentially stable (it's a dependency of useBotOpponent's effect,
+  // and a new identity every render — e.g. on every clock tick — would make
+  // that effect re-run far more than it should).
+  const handleBotMove = useCallback((uci: string) => {
+    const next = applyBotMove(stateRef.current, uci)
+    if (next === stateRef.current) return false
+    dispatch({ type: 'bot-move', uci })
+    return true
+  }, [])
 
   const { thinking } = useBotOpponent({
     enabled: vsComputer && !error,
@@ -126,6 +155,21 @@ export default function ChessGame() {
     : 'white'
 
   const humanMayAct = !vsComputer || state.turn === humanColor
+
+  // The coach is scoped to the exact position it was opened for, so the moment
+  // the position changes — the player's own move, an undo, a new game — the
+  // drawer goes away. Without that, an open drawer fires a fresh depth-16
+  // evaluation for the bot-to-move position and competes with the bot's own
+  // request on the single shared engine worker.
+  //
+  // Derived during render rather than reset from an effect: setState in an
+  // effect is a lint error here, and an effect would also be too late — child
+  // effects run before parent effects, so the drawer would still get one
+  // evaluation in for the bot's position before being closed.
+  const coachVisible = coachFen === state.fen
+    && vsComputer
+    && state.turn === humanColor
+    && !TERMINAL_STATUSES.includes(state.status)
 
   const handleSquareClick = (square: string) => {
     if (TERMINAL_STATUSES.includes(state.status) || state.pendingPromotion) return
@@ -288,6 +332,16 @@ export default function ChessGame() {
           >
             Undo
           </button>
+          {vsComputer && (
+            <button
+              type="button"
+              onClick={() => setCoachFen(state.fen)}
+              disabled={state.turn !== humanColor || thinking || TERMINAL_STATUSES.includes(state.status)}
+              className="rounded-lg bg-gray-100 px-3 py-1 disabled:opacity-40"
+            >
+              Ask Coach
+            </button>
+          )}
           <button type="button" onClick={newGame} className="rounded-lg bg-blue-600 px-3 py-1 text-white">New Game</button>
         </div>
       </div>
@@ -300,6 +354,17 @@ export default function ChessGame() {
 
       {TERMINAL_STATUSES.includes(state.status) && (
         <GameOverModal status={state.status} winner={state.winner} onNewGame={newGame} />
+      )}
+
+      {coachVisible && (
+        <CoachDrawer
+          fen={state.fen}
+          moveHistorySan={state.history}
+          sideToMove={state.turn}
+          getEvaluation={getEvaluation}
+          streamReply={streamCoachReply}
+          onClose={() => setCoachFen(null)}
+        />
       )}
     </div>
   )

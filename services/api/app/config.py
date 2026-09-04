@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     refresh_token_days: int = 30
     cors_origins: str = "http://localhost:3000"
     create_tables_on_startup: bool = False
+    ollama_url: str = "http://ollama:11434"
+    ollama_model: str = "qwen2.5:7b-instruct"
 
     @property
     def cors_origin_list(self) -> list[str]:

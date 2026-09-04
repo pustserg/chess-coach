@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -63,3 +64,23 @@ class GameSummary(BaseModel):
     white_player_id: uuid.UUID | None
     black_player_id: uuid.UUID | None
     time_control_minutes: int
+
+
+class EvaluationIn(BaseModel):
+    score_cp: int | None = None
+    score_mate: int | None = None
+    lines: list[list[str]] = []
+
+
+class CoachMessageIn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class CoachRequest(BaseModel):
+    fen: str
+    move_history_san: list[str] = []
+    side_to_move: Literal["w", "b"]
+    evaluation: EvaluationIn
+    target_elo: int = 2000
+    messages: list[CoachMessageIn]

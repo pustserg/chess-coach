@@ -14,6 +14,30 @@ services:
       timeout: 5s
       retries: 5
 
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: pulls OLLAMA_MODEL into the ollama-data volume if it isn't already
+  # there. Pulling is idempotent (skips already-downloaded layers), so this is
+  # safe and cheap to rerun on every `docker compose up`.
+  ollama-pull:
+    image: ollama/ollama:latest
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["sh", "-c", "ollama pull \"${OLLAMA_MODEL:-qwen2.5:7b-instruct}\""]
+    depends_on:
+      ollama:
+        condition: service_healthy
+
   api:
     build:
       context: ./services/api
@@ -24,6 +48,8 @@ services:
       # No default: must be explicitly provided in the environment.
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - CREATE_TABLES_ON_STARTUP=1
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:7b-instruct}
     depends_on:
       db:
         condition: service_healthy
@@ -38,3 +64,4 @@ services:
 
 volumes:
   pgdata: {}
+  ollama-data: {}

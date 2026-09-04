@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js'
 import { describe, expect, it } from 'vitest'
-import { applyBotMove, applyMove, createInitialState, getCheckSquare, getLastMove, getLegalTargetSquares, getStatus, promote, undo, undoPlies } from './chess'
+import { applyBotMove, applyMove, createInitialState, getCheckSquare, getLastMove, getLegalTargetSquares, getStatus, promote, uciLineToSan, undo, undoPlies } from './chess'
 
 describe('createInitialState', () => {
   it('returns the starting position with both clocks at the control', () => {
@@ -236,5 +236,17 @@ describe('getCheckSquare', () => {
   it('returns null when not in check', () => {
     const chess = new Chess()
     expect(getCheckSquare(chess.fen())).toBeNull()
+  })
+})
+
+describe('uciLineToSan', () => {
+  it('converts a UCI move line to SAN from the given position', () => {
+    const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+    expect(uciLineToSan(fen, ['g1f3', 'g8f6', 'd2d4'])).toEqual(['Nf3', 'Nf6', 'd4'])
+  })
+
+  it('stops at the first illegal move in the line', () => {
+    const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+    expect(uciLineToSan(fen, ['g1f3', 'a8a1'])).toEqual(['Nf3'])
   })
 })
